@@ -3,6 +3,7 @@ import { Prisma } from '@operaflow/db';
 import { PrismaService } from '../prisma/prisma.service';
 import { ReportsService } from '../reports/reports.service';
 import { ReconciliationService } from '../bookings/reconciliation.service';
+import { FollowupsService } from '../followups/followups.service';
 
 export const QUEUES = { reports: 'reports', maintenance: 'maintenance' } as const;
 export type JobName = 'scheduled-report' | 'reconciliation' | 'retention';
@@ -15,9 +16,11 @@ export interface JobHandlers {
 export function buildHandlers(app: INestApplicationContext): JobHandlers {
   const reports = app.get(ReportsService);
   const recon = app.get(ReconciliationService);
+  const followups = app.get(FollowupsService);
   return {
     'scheduled-report': (data, firedAt) => reports.runScheduled(String(data.scheduleId), firedAt),
     reconciliation: () => recon.run(null),
+    'followup-tick': () => followups.tick(),
   };
 }
 

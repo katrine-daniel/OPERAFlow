@@ -13,7 +13,7 @@ until its credentials are supplied and a connection test passes. No integration 
 | Report email delivery | SMTP relay: `SMTP_HOST/PORT/USER/PASSWORD/FROM` (e.g. Microsoft 365 `smtp.office365.com:587` with a licensed sender mailbox, or the Google Workspace SMTP relay). TLS is mandatory in production. | M365 / Google Workspace admin | 3 ✅ ready, needs values |
 | Background scheduler | `REDIS_URL` (compose provides Redis) | Infrastructure | 3 ✅ ready |
 | Ops group delivery | Teams **Workflows** (Power Automate) webhook URL, or a Slack incoming-webhook URL, entered on the Integrations page | Teams/Slack admin | 3 ✅ ready, needs URL |
-| Supplier follow-ups (Microsoft 365) | Entra ID app registration: tenant ID, client ID, client secret; scopes `Mail.ReadWrite`, `Mail.Send`, `offline_access`; admin consent | M365 admin | 4 |
-| Supplier follow-ups (Gmail) | Google Cloud OAuth client (web); scopes `gmail.modify`, `gmail.send`; OAuth consent screen (internal) | Google Workspace admin | 4 |
+| Supplier follow-ups (Microsoft 365) | Entra ID app registration (single tenant, web): `MS_OAUTH_TENANT_ID`, `MS_OAUTH_CLIENT_ID`, `MS_OAUTH_CLIENT_SECRET`. Delegated permissions `Mail.ReadWrite`, `Mail.Send`, `User.Read`, `offline_access` (admin consent). Redirect URI `https://<host>/api/integrations/oauth/microsoft/callback` | M365 admin | 4 ✅ ready, needs values |
+| Supplier follow-ups (Gmail) | Google Cloud OAuth client (type: Web): `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_OAUTH_CLIENT_SECRET`. Consent screen **Internal**, Gmail API enabled, scope `gmail.modify`. Redirect URI `https://<host>/api/integrations/oauth/google/callback` | Google Workspace admin | 4 ✅ ready, needs values |
 | Booking-site tests | Sandbox base URL, sandbox test accounts, test payment method from the payment provider's test mode | Booking-website vendor | 5 |
 | Monitoring (optional) | Sentry DSN or equivalent | Your tooling | 6 |

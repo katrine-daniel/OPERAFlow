@@ -7,6 +7,8 @@ import { CryptoService } from '../common/crypto.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { ZodPipe } from '../common/zod.pipe';
 import { DeliveryService, validateChatWebhookUrl } from '../reports/delivery.service';
+import { MailClientFactory } from '../followups/mail-client.factory';
+import { oauthConfigured } from '../followups/oauth';
 
 const chatSchema = z.object({
   kind: z.enum(['TEAMS_WEBHOOK', 'SLACK_WEBHOOK']),
@@ -22,6 +24,7 @@ export class IntegrationsController {
     private readonly crypto: CryptoService,
     private readonly delivery: DeliveryService,
     private readonly audit: AuditService,
+    private readonly mail: MailClientFactory,
   ) {}
 
   @Get()
@@ -48,6 +51,7 @@ export class IntegrationsController {
       redisConfigured: Boolean(env().REDIS_URL),
       worker: { lastHeartbeat: hb?.at ?? null, healthy: ageMs !== null && ageMs < 3 * 60_000, queues: hb?.queues ?? [] },
       email: this.delivery.emailStatus(),
+      oauth: { google: oauthConfigured('google'), microsoft: oauthConfigured('microsoft') },
     };
   }
 
@@ -77,7 +81,17 @@ export class IntegrationsController {
   async test(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthUser) {
     const i = await this.prisma.integration.findUnique({ where: { id } });
     if (!i) throw new NotFoundException();
-    if (i.kind !== 'TEAMS_WEBHOOK' && i.kind !== 'SLACK_WEBHOOK') throw new BadRequestException('Use the mailbox connection flow for this integration');
+    if (i.kind === 'GMAIL' || i.kind === 'MICROSOFT_GRAPH') {
+      try {
+        await this.mail.forIntegration(i).listRecentSent(1);
+        await this.prisma.integration.update({ where: { id }, data: { status: 'CONNECTED', lastSyncAt: new Date(), lastError: null } });
+        return { ok: true };
+      } catch (err) {
+        await this.prisma.integration.update({ where: { id }, data: { status: 'ERROR', lastError: (err as Error).message.slice(0, 500) } });
+        throw new BadRequestException(`Mailbox test failed: ${(err as Error).message}`);
+      }
+    }
+    if (i.kind !== 'TEAMS_WEBHOOK' && i.kind !== 'SLACK_WEBHOOK') throw new BadRequestException('This integration has no live test');
     if (!i.encryptedSecret) throw new BadRequestException('No webhook URL stored');
     try {
       await this.delivery.postChat(i.kind, this.crypto.decrypt(i.encryptedSecret), 'OPERAFlow test message', [`Sent by ${user.name}. Daily reports will be posted here.`], env().APP_BASE_URL);

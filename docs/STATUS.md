@@ -116,8 +116,56 @@
 | Worker without Redis | Exits with an explicit "INACTIVE" message |
 | BullMQ against a live Redis | **Not run**: no Redis on this machine. Job handlers and idempotency are tested directly; the BullMQ wiring is unverified until deployment. |
 
+## Phase 4: Email OAuth, reply detection, automated follow-ups ✅ (2026-11-07)
+
+**Delivered**
+- **Mailbox connection:** OAuth authorisation-code flow with PKCE for Google (`gmail.modify`) and Microsoft 365 (`Mail.ReadWrite`, `Mail.Send`, `offline_access`).
+  - The state is bound to the admin through an encrypted, 10-minute httpOnly cookie.
+  - The mailbox address is read from the provider, never from the request.
+  - Refresh tokens are AES-256-GCM encrypted and rotated when Microsoft issues new ones; access tokens are kept only in memory.
+- **Provider adapters:** Gmail REST and Microsoft Graph behind one interface: list sent emails, read a thread, create a reply draft, send a draft, send a reply.
+  - Gmail replies are threaded with `In-Reply-To`/`References`; Graph uses `createReply`.
+  - Header-injection characters are stripped, and an expired token triggers one refresh and retry.
+- **Tracking:** pick a sent email from the connected mailbox.
+  - Recipients are the original external To/Cc addresses that are also approved contacts of the chosen supplier. Internal colleagues and unrelated addresses are never targeted.
+  - A thread can be tracked only once.
+- **Reply classification** (conservative):
+  - A reply from the recipient, or a colleague on the same supplier domain (free-mail domains excluded), stops the timer.
+  - Out-of-office, auto-reply (`Auto-Submitted`, `X-Autoreply`, `Precedence`) and internal messages are ignored.
+  - Bounces and unknown senders move the thread to "Needs review".
+- **Engine:**
+  - 24/48/72h rules with business hours, business days and timezone (a follow-up due at the weekend waits for Monday morning), and a maximum follow-up count (then "No reply").
+  - Draft-review mode by default: a draft is created in the mailbox and the owner approves the exact text. Before sending, the thread is re-checked, and nothing goes out if the supplier has replied.
+  - AUTO_SEND only after an administrator approves it (API permission plus a DB CHECK constraint). Editing the rule or its template revokes the approval.
+  - Exactly one execution per (thread, follow-up number), with atomic claims; failures are retried up to 3 times, then go to review; an interrupted send is surfaced, never blindly resent.
+- **Manual controls:** pause, resume, cancel, mark as replied, reschedule, skip a draft, and "Check now".
+  - Staff can act on their own threads; managers and admins on any.
+  - Every action is audited, and owners are notified of drafts, replies, reviews and failures.
+- **Worker:** a `followup-tick` job runs every `FOLLOWUP_POLL_MINUTES` (default 10).
+- **UI:**
+  - Follow-ups page: action queue, tracking wizard, rules (with admin auto-send approval) and template editor (placeholder-validated).
+  - Conversation page: thread timeline with classifications, the draft to review, history, and actions.
+  - Integrations page: connect mailbox, test, disable.
+
+**Verification**
+| Check | Result |
+|---|---|
+| Lint, typecheck | pass |
+| shared unit tests | 25/25 |
+| API tests | 88/88 (29 new) |
+
+What the new API tests cover:
+- **Pure logic (13 tests):** classifier, business-hours scheduling, templates and recipient safety.
+- **Engine (9 tests):** runs against an in-memory mailbox test double. Covers once-only drafts, approval sending exactly the reviewed text, a reply cancelling a pending draft, OOO ignored, bounce goes to review, weekend deferral, the auto-send approval gate (API and DB), retry after failure, exhaustion, owner permissions, and template validation.
+- **OAuth and adapters (7 tests, mocked network):**
+  - OAuth: PKCE redirect, state-mismatch rejection, encrypted token storage.
+  - Adapters: the Gmail raw MIME and header-injection guard; Gmail 401 → refresh → retry; the Graph `createReply` → `PATCH` → `send` sequence.
+
+Browser: the follow-ups and integrations pages show truthful status ("no mailbox connected", "Google/Microsoft OAuth not configured", "worker not running").
+
+**Not verified live:** no Google or Microsoft OAuth app or mailbox exists on this machine. The adapters follow the documented Gmail/Graph REST contracts and are tested against mocked HTTP only. The first real connection must be tested with a non-critical mailbox (see `docs/CREDENTIALS.md`).
+
 ## Remaining phases
-- **Phase 4:** Gmail / Microsoft Graph OAuth, thread tracking, reply classification, follow-up engine
 - **Phase 5:** Playwright test engine, environments, scheduled runs, artifacts, alerts
 - **Phase 6:** E2E tests, hardening (MFA/SSO option, retention jobs, upload scanning), observability, deployment verification
 

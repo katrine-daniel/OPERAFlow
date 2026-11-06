@@ -16,7 +16,7 @@ export const NAV_SECTIONS: { title: string; items: NavItem[] }[] = [
       { href: '/bookings', label: 'Booking registry', permission: 'bookings:read' },
       { href: '/reconciliation', label: 'Reconciliation', permission: 'bookings:read' },
       { href: '/imports', label: 'Imports', permission: 'bookings:import' },
-      { href: '/follow-ups', label: 'Supplier follow-ups', permission: 'followups:read', phase: 4 },
+      { href: '/follow-ups', label: 'Supplier follow-ups', permission: 'followups:read' },
       { href: '/reports', label: 'Daily reports', permission: 'reports:read' },
     ],
   },

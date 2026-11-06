@@ -65,6 +65,8 @@ async function main() {
       if (existing.key.startsWith('report:') && !wanted.has(existing.key)) await queues.reports.removeJobScheduler(existing.key);
     }
     await queues.maintenance.upsertJobScheduler('reconciliation', { pattern: config.RECONCILIATION_CRON, tz: config.DEFAULT_TIMEZONE }, { name: 'reconciliation', data: {}, opts: jobDefaults });
+    // Follow-up checks: no retries at queue level (the engine records its own per-thread failures and retries next tick).
+    await queues.maintenance.upsertJobScheduler('followup-tick', { every: config.FOLLOWUP_POLL_MINUTES * 60_000 }, { name: 'followup-tick', data: {}, opts: { attempts: 1, removeOnComplete: 500, removeOnFail: 1000 } });
   }
 
   async function heartbeat() {

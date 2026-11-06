@@ -31,7 +31,8 @@ const KIND_LABEL: Record<string, string> = {
   TEAMS_WEBHOOK: 'Teams channel', SLACK_WEBHOOK: 'Slack channel', TBO: 'TBO', CSV_ADAPTER: 'CSV adapter', SMTP: 'SMTP',
 };
 
-export default async function IntegrationsPage() {
+export default async function IntegrationsPage({ searchParams }: { searchParams: Promise<{ connected?: string; oauth_error?: string }> }) {
+  const sp = await searchParams;
   const [me, items, status] = await Promise.all([getMe(), apiGet<IntegrationRow[]>('/integrations'), apiGet<AutomationStatus>('/integrations/status')]);
   const canManage = me.permissions.includes('integrations:manage');
 
@@ -41,6 +42,8 @@ export default async function IntegrationsPage() {
         title="Integrations"
         description="Every external connection, labelled by what it really is. A connection shows Connected only after a real call has succeeded. Secrets are encrypted and never displayed."
       />
+      {sp.connected && <p className="mb-4 rounded-md bg-ok-soft px-4 py-2.5 text-[13px] text-ok">Mailbox {sp.connected} connected.</p>}
+      {sp.oauth_error && <p className="mb-4 rounded-md bg-bad-soft px-4 py-2.5 text-[13px] text-bad">Mailbox connection failed: {sp.oauth_error}</p>}
       <div className="mb-4 grid gap-3 md:grid-cols-3">
         <Card title="Background worker">
           <div className="space-y-1 px-4 py-3 text-[13px]">

@@ -51,6 +51,20 @@ const envSchema = z.object({
   SMTP_FROM: z.preprocess((v) => (v === '' ? undefined : v), z.string().optional()),
   /** Development/test only: allow plaintext SMTP. Refused in production. */
   SMTP_ALLOW_INSECURE: bool,
+
+  // Mailbox OAuth (supplier follow-ups).
+  GOOGLE_OAUTH_CLIENT_ID: z.preprocess((v) => (v === '' ? undefined : v), z.string().optional()),
+  GOOGLE_OAUTH_CLIENT_SECRET: z.preprocess((v) => (v === '' ? undefined : v), z.string().optional()),
+  MS_OAUTH_TENANT_ID: z.preprocess((v) => (v === '' ? undefined : v), z.string().optional()),
+  MS_OAUTH_CLIENT_ID: z.preprocess((v) => (v === '' ? undefined : v), z.string().optional()),
+  MS_OAUTH_CLIENT_SECRET: z.preprocess((v) => (v === '' ? undefined : v), z.string().optional()),
+  /** How often the worker checks tracked threads. */
+  FOLLOWUP_POLL_MINUTES: z.coerce.number().int().min(2).max(120).default(10),
+  /** Extra company domains treated as internal (the mailbox's own domain always is). Comma-separated. */
+  INTERNAL_EMAIL_DOMAINS: z
+    .string()
+    .default('')
+    .transform((v) => v.split(',').map((s) => s.trim().toLowerCase()).filter(Boolean)),
 });
 
 export type Env = z.infer<typeof envSchema>;

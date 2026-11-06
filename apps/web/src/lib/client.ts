@@ -26,6 +26,14 @@ export interface DuplicateInfo {
   source: { name: string };
 }
 
+/** Browser-side GET through the /api proxy. */
+export async function apiFetchJson<T>(path: string): Promise<T> {
+  const res = await fetch(`/api${path}`, { credentials: 'same-origin' });
+  const data = (await res.json().catch(() => ({}))) as { message?: string };
+  if (!res.ok) throw new ClientApiError(res.status, data.message ?? `Request failed (${res.status})`, [], data as Record<string, unknown>);
+  return data as T;
+}
+
 /** Multipart upload through the /api proxy (browser sets the boundary). */
 export async function apiUpload<T = unknown>(path: string, form: FormData): Promise<T> {
   const res = await fetch(`/api${path}`, { method: 'POST', credentials: 'same-origin', body: form });

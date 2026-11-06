@@ -66,6 +66,27 @@ The Booking sources page shows how each channel is actually connected.
 
 **Scheduler status:** the Reports and Integrations pages show whether the background worker is running. If it says "inactive", schedules won't fire, though previews and manual runs still work.
 
+## Supplier follow-ups
+**Setup (once):**
+1. An administrator connects the reservations mailbox under Integrations → Connect Gmail / Microsoft 365, then clicks **Test**.
+2. Make sure each supplier's reservation addresses are listed as contacts under Suppliers. Follow-ups only ever go to those addresses.
+
+**Tracking a request:**
+1. Follow-ups → Track a sent email → Load sent emails.
+2. Pick the quotation or rate request. The supplier is suggested from the recipients.
+3. Choose a rule (24h, 48h or 72h) and click **Start tracking**.
+
+**What happens next:**
+- The thread is checked every 10 minutes.
+- **Supplier replies:** tracking stops and you're notified. Out-of-office and automatic replies don't count.
+- **No reply by the deadline:** inside business hours, a follow-up draft is created and appears under **Needs action**. Open it, read exactly what will be sent, then **Approve & send** or **Skip**. If the supplier replies before you approve, nothing is sent.
+- **Bounce, or a reply from someone unexpected:** the thread goes to **Needs review** for a human to decide.
+- **Limit reached:** after the maximum number of follow-ups, the thread is marked **No reply** so you can call the supplier.
+
+**Unattended sending:** only an administrator can switch a rule to auto-send, and the approval is recorded. Changing the rule or its template switches it back to draft review automatically.
+
+**Manual controls on a thread:** Check now, Pause, Resume, Mark replied, Stop tracking, Reschedule.
+
 ## Audit log
 The audit log records sign-ins, failed sign-ins, lockouts, administrative changes, booking changes, imports, reconciliation runs, document downloads and rejected webhooks. Filter by action prefix (for example `booking.` or `webhook.`). Entries cannot be edited.
 

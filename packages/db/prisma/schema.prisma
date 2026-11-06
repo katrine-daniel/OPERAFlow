@@ -512,6 +512,7 @@ model EmailConversation {
   integrationId       String             @map("integration_id") @db.Uuid
   providerThreadId    String             @map("provider_thread_id")
   originalMessageId   String             @map("original_message_id")
+  originalInternetMessageId String?      @map("original_internet_message_id")
   subject             String
   supplierId          String?            @map("supplier_id") @db.Uuid
   ownerId             String             @map("owner_id") @db.Uuid
@@ -563,6 +564,7 @@ model EmailMessage {
   providerMessageId String              @map("provider_message_id")
   direction         MessageDirection
   fromAddress       String              @map("from_address")
+  subject           String?
   classification    ReplyClassification
   receivedAt        DateTime            @map("received_at") @db.Timestamptz(6)
   createdAt         DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
@@ -570,6 +572,7 @@ model EmailMessage {
   conversation EmailConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
 
   @@unique([conversationId, providerMessageId])
+  @@index([conversationId, receivedAt])
   @@map("email_messages")
 }
 
@@ -638,6 +641,8 @@ model FollowUpExecution {
   idempotencyKey    String                  @unique @map("idempotency_key")
   scheduledFor      DateTime                @map("scheduled_for") @db.Timestamptz(6)
   recipients        String[]
+  subject           String?
+  body              String?
   attempts          Int                     @default(0)
   providerDraftId   String?                 @map("provider_draft_id")
   providerMessageId String?                 @map("provider_message_id")

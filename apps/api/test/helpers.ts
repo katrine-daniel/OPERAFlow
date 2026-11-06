@@ -8,11 +8,13 @@ import { hashPassword } from '../src/auth/password';
 export const ORIGIN = 'http://localhost:3000';
 export const TEST_PASSWORD = 'Test-Passw0rd-123';
 
-export async function createTestApp(): Promise<INestApplication> {
+export async function createTestApp(overrides: { provide: unknown; useValue: unknown }[] = []): Promise<INestApplication> {
   // Imported lazily so a test file can adjust process.env before the app module is evaluated.
   const { AppModule } = await import('../src/app.module');
   const { configureApp } = await import('../src/bootstrap');
-  const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
+  let builder = Test.createTestingModule({ imports: [AppModule] });
+  for (const o of overrides) builder = builder.overrideProvider(o.provide).useValue(o.useValue);
+  const moduleRef = await builder.compile();
   const app = moduleRef.createNestApplication<NestExpressApplication>({ bodyParser: false, rawBody: true, logger: ['error'] });
   configureApp(app);
   await app.init();
@@ -21,7 +23,8 @@ export async function createTestApp(): Promise<INestApplication> {
 
 export async function resetDatabase(prisma: PrismaClient): Promise<void> {
   // Safety: never truncate anything but a dedicated *_test database, whatever the environment says.
-  const [{ db }] = await prisma.$queryRaw<{ db: string }[]>`SELECT current_database() AS db`;
+  const [row] = await prisma.$queryRaw<{ db: string }[]>`SELECT current_database() AS db`;
+  const db = row?.db ?? '';
   if (!db.endsWith('_test')) throw new Error(`Refusing to reset database "${db}": tests may only run against a *_test database`);
   const tables = await prisma.$queryRaw<{ tablename: string }[]>`
     SELECT tablename FROM pg_tables WHERE schemaname = 'public' AND tablename <> '_prisma_migrations'`;
