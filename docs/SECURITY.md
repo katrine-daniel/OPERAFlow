@@ -43,8 +43,12 @@ Legend: ✅ implemented and covered by automated tests · 🟡 implemented, not 
 - ⏳ Structured JSON logs, error tracking (e.g. Sentry) and metrics (Phase 6)
 
 ## Test-automation safety (Phase 5)
-- ✅ DB constraint: booking create/modify/cancel scenarios are only possible against `SANDBOX` environments
-- ⏳ Runtime guard rejecting real payment flows; allow-listed hosts only
+- ✅ DB constraint plus pre-flight and run-time checks: booking create/modify/cancel scenarios run only against `SANDBOX` environments with mutations enabled
+- ✅ Luhn-valid card numbers that aren't published test cards are refused before any browser starts
+- ✅ Browser network restricted to the environment host and an explicit allow-list; everything else is aborted and logged
+- ✅ PRODUCTION_READONLY environments abort all non-GET requests except allow-listed paths
+- ✅ Private/internal targets refused in production (SSRF guard); https required
+- ✅ Environment credentials are write-only and encrypted; secrets and card-like numbers are redacted from errors, steps and logs
 
 ## Operational
 - ✅ No credentials in source; seed passwords generated or supplied via env

@@ -165,8 +165,64 @@ Browser: the follow-ups and integrations pages show truthful status ("no mailbox
 
 **Not verified live:** no Google or Microsoft OAuth app or mailbox exists on this machine. The adapters follow the documented Gmail/Graph REST contracts and are tested against mocked HTTP only. The first real connection must be tested with a non-critical mailbox (see `docs/CREDENTIALS.md`).
 
+## Phase 5: Playwright booking-site testing engine ✅ (2026-11-07)
+
+**Delivered**
+- **Environments:**
+  - SANDBOX, STAGING or PRODUCTION_READONLY, https only.
+  - Private/internal targets are refused in production (SSRF guard).
+  - Credentials are write-only and encrypted, used in steps as `{{secret.key}}`.
+  - Optional extra allowed hosts (e.g. a payment provider's test mode).
+- **Scenario DSL** (data, not code; validated before any browser starts): `goto`, `fill`, `select`, `check`, `click`, `press`, `waitFor`, `expectVisible`, `expectHidden`, `expectText`, `expectCount`, `expectUrl`, `extract`, `screenshot`. Supports variables, relative dates (`{{date:+30}}`), secrets and extracted values (e.g. the booking reference).
+- **Catalogue of 10 seeded journeys:** search, availability, rate selection, guest validation, create, confirm, modify, cancel, refund/cancellation policy, negative inputs. Each is flagged critical and/or "mutates bookings".
+- **Safety guards** (checked pre-flight and again at run time):
+  - Booking-mutating journeys run only on SANDBOX with mutations explicitly enabled (also a DB CHECK constraint).
+  - A Luhn-valid card number that isn't a published test card is refused before the browser opens.
+  - Every request to a host outside the environment's allow-list is aborted and listed.
+  - PRODUCTION_READONLY aborts all non-GET requests except allow-listed paths.
+  - Navigation outside the site is refused.
+  - Secrets and card numbers are redacted from all stored errors and logs.
+- **Runner:**
+  - Chromium on desktop (1366×800) and mobile (iPhone 13 emulation).
+  - Per-step timeouts and a 5-minute scenario cap.
+  - Saves a step-by-step result with timings, a full-page screenshot on failure plus any `screenshot` steps, and a Playwright trace (replayable at trace.playwright.dev).
+  - Collects diagnostics (blocked requests, HTTP 5xx, console errors, captured values).
+- **Failure classification:** assertion, timeout, network, HTTP error, environment/config, safety guard, unknown.
+- **Alerts:** a failed or blocked critical scenario notifies all admins and QA users.
+- **Execution:** the worker's `tests` queue (concurrency 1) when Redis is configured, otherwise inline in the API (serialised).
+  - Scheduled runs come from a cron per scenario plus its target environment.
+  - Scheduled runs are idempotent per fire time and viewport.
+- **UI:**
+  - Testing dashboard: 24h stats, scenarios with run history and Run button, environments.
+  - Scenario editor: JSON steps with an example, schedule, viewports, critical flag.
+  - Run detail: steps, failure explanation, screenshots, trace download, diagnostics.
+- **Docker:** the API/worker image installs Chromium and its system dependencies.
+
+**Verification**
+| Check | Result |
+|---|---|
+| Lint, typecheck | pass |
+| shared unit tests | 25/25 |
+| API tests | 103/103 (15 new) |
+| Browser, end to end | Added "Demo sandbox (local)" environment (credentials not echoed back) → inserted example steps → **Run** → desktop + mobile PASSED; run page shows 7 timed steps, blocked third-party host, and a 1366×800 screenshot |
+
+The 15 new API tests:
+- **Unit (7):** DSL, interpolation, test-card policy, host allow-list, private hosts, failure classes, redaction.
+- **Real Chromium, against a local DEMO sandbox booking site (8):**
+  - Search passes on desktop and mobile, with trace and screenshots stored and the third-party host blocked.
+  - Booking create on staging is blocked before a browser starts, and critical alerts are sent.
+  - Create → confirm → cancel passes in an enabled sandbox (using a secret and an extracted reference).
+  - A real-looking card is refused.
+  - Assertion, timeout, HTTP 500 and unconfigured scenarios are each classified correctly.
+  - Client-side guest validation works.
+  - A production read-only environment blocks form POSTs.
+
+**Needs configuration:**
+- Scenario steps depend on the real booking website's HTML. All seeded scenarios start as "steps not configured".
+- The website's sandbox URL, test accounts, and the payment provider's test-mode hosts must be supplied (see `docs/CREDENTIALS.md`).
+- The demo sandbox (`npx tsx apps/api/test/fixtures/sandbox-site.ts`) exists only for trying the engine.
+
 ## Remaining phases
-- **Phase 5:** Playwright test engine, environments, scheduled runs, artifacts, alerts
 - **Phase 6:** E2E tests, hardening (MFA/SSO option, retention jobs, upload scanning), observability, deployment verification
 
 ## Known limitations

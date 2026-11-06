@@ -87,6 +87,24 @@ The Booking sources page shows how each channel is actually connected.
 
 **Manual controls on a thread:** Check now, Pause, Resume, Mark replied, Stop tracking, Reschedule.
 
+## Booking-site tests (QA)
+1. **Add an environment** (Booking-site tests → Add environment):
+   - Use the booking website's sandbox or staging URL.
+   - Choose **Sandbox** and tick "Allow … create, modify and cancel bookings" only if that sandbox can't reach real hotels or charge real cards.
+   - Put test-account credentials under Credentials as `key=value` lines.
+   - If the payment provider's test widget loads from another domain, add it under Extra allowed hosts (for example `*.stripe.com`).
+2. **Configure scenario steps:**
+   - Open a scenario, write or paste its steps (JSON), and save. "Insert example" gives a starting point; replace the selectors with the ones on your website.
+   - Use `{{date:+30}}` for future stay dates, `{{secret.username}}` for credentials, and `extract` to capture the booking reference for later steps (`{{extracted.ref}}`).
+3. **Run:** choose an environment and click **Run**. Booking-changing scenarios only list eligible sandboxes.
+4. **Read the result:**
+   - Each step shows pass/fail with its time.
+   - Failures come with a plain-language category, a screenshot and a downloadable trace. Open the trace at trace.playwright.dev to replay every step.
+   - "Blocked (safety)" means OPERAFlow refused to do something unsafe, such as creating a booking outside the sandbox or typing a real card number.
+5. **Schedule:** set a cron and a scheduled environment on the scenario. This needs the worker (Redis) running.
+
+Only published test card numbers are accepted. Critical scenario failures notify all administrators and QA users.
+
 ## Audit log
 The audit log records sign-ins, failed sign-ins, lockouts, administrative changes, booking changes, imports, reconciliation runs, document downloads and rejected webhooks. Filter by action prefix (for example `booking.` or `webhook.`). Entries cannot be edited.
 

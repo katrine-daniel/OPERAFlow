@@ -32,6 +32,9 @@ COPY --from=prune --chown=node:node /app/packages/db/package.json /app/packages/
 COPY --from=prune --chown=node:node /app/packages/db/dist packages/db/dist
 COPY --from=prune --chown=node:node /app/apps/api/package.json apps/api/
 COPY --from=prune --chown=node:node /app/apps/api/dist apps/api/dist
+# Chromium + system libraries for the Playwright test engine (used by the worker and inline runs).
+ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+RUN npx playwright install --with-deps chromium && chmod -R a+rX /ms-playwright && rm -rf /var/lib/apt/lists/*
 # Document store; a named volume mounted here inherits this ownership on first use.
 RUN mkdir -p /app/storage && chown node:node /app/storage
 ENV STORAGE_DIR=/app/storage

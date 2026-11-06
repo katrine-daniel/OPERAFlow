@@ -26,6 +26,7 @@
     "ioredis": "^5.11.1",
     "nodemailer": "^7.0.13",
     "pdfkit": "^0.17.2",
+    "playwright": "^1.65.0",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.2",
     "zod": "^3.25.76"

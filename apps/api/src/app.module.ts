@@ -10,6 +10,7 @@ import { AuthModule } from './auth/auth.module';
 import { BookingsModule } from './bookings/bookings.module';
 import { ReportsModule } from './reports/reports.module';
 import { FollowupsModule } from './followups/followups.module';
+import { TestingModule } from './testing/testing.module';
 import { UsersController } from './users/users.controller';
 import { DashboardController } from './dashboard/dashboard.controller';
 import { HealthController } from './health/health.controller';
@@ -24,6 +25,7 @@ import { HealthController } from './health/health.controller';
     BookingsModule,
     ReportsModule,
     FollowupsModule,
+    TestingModule,
   ],
   controllers: [UsersController, DashboardController, HealthController],
   providers: [

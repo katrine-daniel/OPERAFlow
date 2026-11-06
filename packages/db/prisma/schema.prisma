@@ -684,7 +684,8 @@ model TestEnvironment {
   createdAt              DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt              DateTime            @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  runs TestRun[]
+  runs               TestRun[]
+  scheduledScenarios TestScenario[]
 
   @@map("test_environments")
 }
@@ -714,11 +715,14 @@ model TestScenario {
   config          Json        @default("{}")
   cron            String?
   timezone        String      @default("UTC")
+  /// Environment used for scheduled runs (required when cron is set).
+  environmentId   String?     @map("environment_id") @db.Uuid
   isActive        Boolean     @default(true) @map("is_active")
   createdAt       DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt       DateTime    @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  runs TestRun[]
+  environment TestEnvironment? @relation(fields: [environmentId], references: [id], onDelete: SetNull)
+  runs        TestRun[]
 
   @@map("test_scenarios")
 }
@@ -759,6 +763,7 @@ model TestRun {
   failureClass  FailureClass? @map("failure_class")
   errorMessage  String?       @map("error_message")
   steps         Json          @default("[]")
+  diagnostics   Json          @default("{}")
   idempotencyKey String?      @unique @map("idempotency_key")
   queuedAt      DateTime      @default(now()) @map("queued_at") @db.Timestamptz(6)
   startedAt     DateTime?     @map("started_at") @db.Timestamptz(6)

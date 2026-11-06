@@ -36,7 +36,11 @@ async function main() {
   const handlers = buildHandlers(app);
 
   const connection = new IORedis(config.REDIS_URL, { maxRetriesPerRequest: null });
-  const queues = { reports: new Queue(QUEUES.reports, { connection }), maintenance: new Queue(QUEUES.maintenance, { connection }) };
+  const queues = {
+    reports: new Queue(QUEUES.reports, { connection }),
+    maintenance: new Queue(QUEUES.maintenance, { connection }),
+    tests: new Queue(QUEUES.tests, { connection }),
+  };
   const jobDefaults = { attempts: 3, backoff: { type: 'exponential', delay: 60_000 }, removeOnComplete: 1000, removeOnFail: 5000 };
 
   const processor = (queue: string) => async (job: Job) => {
@@ -47,6 +51,8 @@ async function main() {
   const workers = [
     new Worker(QUEUES.reports, processor(QUEUES.reports), { connection, concurrency: 2 }),
     new Worker(QUEUES.maintenance, processor(QUEUES.maintenance), { connection, concurrency: 1 }),
+    // One browser at a time; Playwright runs are CPU/memory heavy.
+    new Worker(QUEUES.tests, processor(QUEUES.tests), { connection, concurrency: 1, lockDuration: 10 * 60_000 }),
   ];
   for (const w of workers) {
     w.on('failed', (job, err) => log.error(`${w.name}/${job?.name} ${job?.id} failed (attempt ${job?.attemptsMade}): ${err.message}`));
@@ -65,6 +71,15 @@ async function main() {
       if (existing.key.startsWith('report:') && !wanted.has(existing.key)) await queues.reports.removeJobScheduler(existing.key);
     }
     await queues.maintenance.upsertJobScheduler('reconciliation', { pattern: config.RECONCILIATION_CRON, tz: config.DEFAULT_TIMEZONE }, { name: 'reconciliation', data: {}, opts: jobDefaults });
+    const scheduledTests = await prisma.testScenario.findMany({ where: { isActive: true, cron: { not: null }, environmentId: { not: null } }, select: { id: true, cron: true, timezone: true } });
+    const wantedTests = new Set<string>();
+    for (const s of scheduledTests) {
+      wantedTests.add(`test:${s.id}`);
+      await queues.tests.upsertJobScheduler(`test:${s.id}`, { pattern: s.cron!, tz: s.timezone }, { name: 'scheduled-test', data: { scenarioId: s.id }, opts: { attempts: 1, removeOnComplete: 500, removeOnFail: 1000 } });
+    }
+    for (const existing of await queues.tests.getJobSchedulers()) {
+      if (existing.key.startsWith('test:') && !wantedTests.has(existing.key)) await queues.tests.removeJobScheduler(existing.key);
+    }
     // Follow-up checks: no retries at queue level (the engine records its own per-thread failures and retries next tick).
     await queues.maintenance.upsertJobScheduler('followup-tick', { every: config.FOLLOWUP_POLL_MINUTES * 60_000 }, { name: 'followup-tick', data: {}, opts: { attempts: 1, removeOnComplete: 500, removeOnFail: 1000 } });
   }

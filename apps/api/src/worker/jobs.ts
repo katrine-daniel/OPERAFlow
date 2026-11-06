@@ -4,8 +4,10 @@ import { PrismaService } from '../prisma/prisma.service';
 import { ReportsService } from '../reports/reports.service';
 import { ReconciliationService } from '../bookings/reconciliation.service';
 import { FollowupsService } from '../followups/followups.service';
+import { RunnerService } from '../testing/runner.service';
+import { TestingService } from '../testing/testing.service';
 
-export const QUEUES = { reports: 'reports', maintenance: 'maintenance' } as const;
+export const QUEUES = { reports: 'reports', maintenance: 'maintenance', tests: 'tests' } as const;
 export type JobName = 'scheduled-report' | 'reconciliation' | 'retention';
 
 export interface JobHandlers {
@@ -17,10 +19,17 @@ export function buildHandlers(app: INestApplicationContext): JobHandlers {
   const reports = app.get(ReportsService);
   const recon = app.get(ReconciliationService);
   const followups = app.get(FollowupsService);
+  const runner = app.get(RunnerService);
+  const testing = app.get(TestingService);
   return {
     'scheduled-report': (data, firedAt) => reports.runScheduled(String(data.scheduleId), firedAt),
     reconciliation: () => recon.run(null),
     'followup-tick': () => followups.tick(),
+    'test-run': async (data) => {
+      await runner.execute(String(data.runId));
+      return { runId: data.runId };
+    },
+    'scheduled-test': (data, firedAt) => testing.runScheduled(String(data.scenarioId), firedAt),
   };
 }
 

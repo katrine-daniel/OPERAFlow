@@ -22,7 +22,7 @@ export const NAV_SECTIONS: { title: string; items: NavItem[] }[] = [
   },
   {
     title: 'Quality',
-    items: [{ href: '/testing', label: 'Booking-site tests', permission: 'tests:read', phase: 5 }],
+    items: [{ href: '/testing', label: 'Booking-site tests', permission: 'tests:read' }],
   },
   {
     title: 'Directory',
