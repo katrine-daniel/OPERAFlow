@@ -1,0 +1,89 @@
+# OPERAFlow production-style stack.
+#   cp deploy/.env.docker.example deploy/.env.docker   # fill in secrets
+#   docker compose --env-file deploy/.env.docker up -d --build
+# Caddy terminates TLS; only ports 80/443 are published. Postgres and Redis are internal.
+
+name: operaflow
+
+x-app-env: &app-env
+  NODE_ENV: production
+  DATABASE_URL: postgresql://operaflow:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}@postgres:5432/operaflow
+  ENCRYPTION_KEY: ${ENCRYPTION_KEY:?set ENCRYPTION_KEY}
+  WEB_ORIGINS: https://${SITE_ADDRESS:-localhost}
+  TRUST_PROXY: uniquelocal
+  COOKIE_SECURE: 'true'
+  DEFAULT_TIMEZONE: ${DEFAULT_TIMEZONE:-UTC}
+  REDIS_URL: redis://redis:6379
+
+services:
+  postgres:
+    image: postgres:17.6-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: operaflow
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+      POSTGRES_DB: operaflow
+      POSTGRES_INITDB_ARGS: --encoding=UTF8 --locale=C.UTF-8
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U operaflow -d operaflow']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  # Used from Phase 3 (BullMQ workers). Persistence on so queued jobs survive restarts.
+  redis:
+    image: redis:7.4-alpine
+    restart: unless-stopped
+    command: ['redis-server', '--appendonly', 'yes']
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  migrate:
+    build: { context: ., dockerfile: apps/api/Dockerfile, target: migrate }
+    environment: *app-env
+    depends_on:
+      postgres: { condition: service_healthy }
+    restart: 'no'
+
+  api:
+    build: { context: ., dockerfile: apps/api/Dockerfile, target: runtime }
+    restart: unless-stopped
+    environment: *app-env
+    volumes:
+      - storage:/app/storage
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      redis: { condition: service_healthy }
+
+  web:
+    build: { context: ., dockerfile: apps/web/Dockerfile }
+    restart: unless-stopped
+    environment:
+      API_INTERNAL_URL: http://api:4000
+      DEFAULT_TIMEZONE: ${DEFAULT_TIMEZONE:-UTC}
+    depends_on:
+      api: { condition: service_healthy }
+
+  caddy:
+    image: caddy:2.10-alpine
+    restart: unless-stopped
+    ports: ['80:80', '443:443']
+    environment:
+      SITE_ADDRESS: ${SITE_ADDRESS:-localhost}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddydata:/data
+    depends_on: [web]
+
+volumes:
+  storage:
+  pgdata:
+  redisdata:
+  caddydata:

@@ -1,0 +1,937 @@
+// OPERAFlow database schema.
+// Conventions: UUID primary keys, snake_case tables, timestamps in UTC (timestamptz),
+// money as NUMERIC(12,2) with an explicit ISO-4217 currency. Missing money values are NULL,
+// never 0, so reports can flag them instead of silently treating them as zero.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────── Identity & access ───────────────────────────────
+
+enum Role {
+  ADMIN
+  OPS_MANAGER
+  OPS_STAFF
+  QA
+}
+
+model User {
+  id               String    @id @default(uuid()) @db.Uuid
+  email            String    @unique
+  name             String
+  passwordHash     String    @map("password_hash")
+  role             Role
+  isActive         Boolean   @default(true) @map("is_active")
+  failedLoginCount Int       @default(0) @map("failed_login_count")
+  lockedUntil      DateTime? @map("locked_until") @db.Timestamptz(6)
+  lastLoginAt      DateTime? @map("last_login_at") @db.Timestamptz(6)
+  passwordChangedAt DateTime @default(now()) @map("password_changed_at") @db.Timestamptz(6)
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  sessions               Session[]
+  auditLogs              AuditLog[]
+  notifications          Notification[]
+  assignedBookings       Booking[]            @relation("BookingAssignee")
+  createdBookings        Booking[]            @relation("BookingCreator")
+  bookingChanges         BookingChange[]
+  bookingImports         BookingImport[]
+  bookingDocuments       BookingDocument[]
+  ownedConversations     EmailConversation[]
+  approvedFollowUpRules  FollowUpRule[]       @relation("AutoSendApprover")
+  approvedFollowUps      FollowUpExecution[]
+  triggeredTestRuns      TestRun[]
+  createdReports         ScheduledReport[]
+  triggeredReportRuns    ReportRun[]
+  approvedRecipients     ApprovedRecipient[]
+  ownedIntegrations      Integration[]
+  resolvedReconciliation ReconciliationIssue[]
+
+  @@map("users")
+}
+
+model Session {
+  id         String    @id @default(uuid()) @db.Uuid
+  tokenHash  String    @unique @map("token_hash")
+  userId     String    @map("user_id") @db.Uuid
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  lastSeenAt DateTime  @default(now()) @map("last_seen_at") @db.Timestamptz(6)
+  expiresAt  DateTime  @map("expires_at") @db.Timestamptz(6)
+  revokedAt  DateTime? @map("revoked_at") @db.Timestamptz(6)
+  ipAddress  String?   @map("ip_address")
+  userAgent  String?   @map("user_agent")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("sessions")
+}
+
+enum ActorType {
+  USER
+  SYSTEM
+}
+
+model AuditLog {
+  id         String    @id @default(uuid()) @db.Uuid
+  actorType  ActorType @map("actor_type")
+  actorId    String?   @map("actor_id") @db.Uuid
+  action     String
+  entityType String    @map("entity_type")
+  entityId   String?   @map("entity_id")
+  ipAddress  String?   @map("ip_address")
+  userAgent  String?   @map("user_agent")
+  metadata   Json?
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  actor User? @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([entityType, entityId])
+  @@index([actorId])
+  @@index([createdAt])
+  @@index([action])
+  @@map("audit_logs")
+}
+
+model Notification {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  type      String
+  severity  String    @default("info")
+  title     String
+  body      String?
+  link      String?
+  readAt    DateTime? @map("read_at") @db.Timestamptz(6)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt])
+  @@map("notifications")
+}
+
+model SystemSetting {
+  key       String   @id
+  value     Json
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("system_settings")
+}
+
+// ─────────────────────────────── Integrations ───────────────────────────────
+
+enum IntegrationKind {
+  GMAIL
+  MICROSOFT_GRAPH
+  BOOKING_API
+  BOOKING_WEBHOOK
+  TBO
+  CSV_ADAPTER
+  TEAMS_WEBHOOK
+  SLACK_WEBHOOK
+  SMTP
+}
+
+/// LIVE = real external system; DEMO = clearly-labelled demo/sandbox adapter; DISABLED = off.
+enum IntegrationMode {
+  LIVE
+  DEMO
+  DISABLED
+}
+
+enum IntegrationStatus {
+  NOT_CONFIGURED
+  CONNECTED
+  ERROR
+  REVOKED
+}
+
+model Integration {
+  id              String            @id @default(uuid()) @db.Uuid
+  kind            IntegrationKind
+  name            String
+  mode            IntegrationMode   @default(DISABLED)
+  status          IntegrationStatus @default(NOT_CONFIGURED)
+  /// Non-secret configuration only (tenant id, base URL, scopes...).
+  config          Json              @default("{}")
+  /// AES-256-GCM encrypted secret material (OAuth refresh tokens, API keys). Never returned by the API.
+  encryptedSecret String?           @map("encrypted_secret")
+  mailboxAddress  String?           @map("mailbox_address")
+  ownerUserId     String?           @map("owner_user_id") @db.Uuid
+  lastSyncAt      DateTime?         @map("last_sync_at") @db.Timestamptz(6)
+  syncCursor      String?           @map("sync_cursor")
+  lastError       String?           @map("last_error")
+  createdAt       DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime          @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  owner          User?               @relation(fields: [ownerUserId], references: [id], onDelete: SetNull)
+  bookingSources BookingSource[]
+  conversations  EmailConversation[]
+  reports        ScheduledReport[]
+
+  @@unique([kind, mailboxAddress])
+  @@index([kind, mode])
+  @@map("integrations")
+}
+
+// ─────────────────────────────── Suppliers & hotels ───────────────────────────────
+
+enum SupplierType {
+  HOTEL_DIRECT
+  WHOLESALER
+  BEDBANK
+  DMC
+  OTHER
+}
+
+model Supplier {
+  id        String       @id @default(uuid()) @db.Uuid
+  code      String       @unique
+  name      String
+  type      SupplierType
+  phone     String?
+  timezone  String       @default("UTC")
+  notes     String?
+  isActive  Boolean      @default(true) @map("is_active")
+  isDemo    Boolean      @default(false) @map("is_demo")
+  createdAt DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  contacts      SupplierContact[]
+  bookings      Booking[]
+  conversations EmailConversation[]
+
+  @@index([name])
+  @@map("suppliers")
+}
+
+/// Only addresses listed here are eligible to receive automated follow-ups for a supplier.
+model SupplierContact {
+  id         String   @id @default(uuid()) @db.Uuid
+  supplierId String   @map("supplier_id") @db.Uuid
+  name       String?
+  email      String
+  isPrimary  Boolean  @default(false) @map("is_primary")
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  supplier Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+
+  @@unique([supplierId, email])
+  @@index([email])
+  @@map("supplier_contacts")
+}
+
+model Hotel {
+  id          String   @id @default(uuid()) @db.Uuid
+  name        String
+  city        String
+  country     String   @db.Char(2)
+  address     String?
+  starRating  Int?     @map("star_rating") @db.SmallInt
+  externalIds Json     @default("{}") @map("external_ids")
+  isDemo      Boolean  @default(false) @map("is_demo")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  bookings Booking[]
+
+  @@unique([name, city, country])
+  @@index([city])
+  @@map("hotels")
+}
+
+// ─────────────────────────────── Booking registry ───────────────────────────────
+
+enum BookingChannel {
+  ONLINE
+  OFFLINE
+}
+
+enum SourceAdapter {
+  API
+  WEBHOOK
+  CSV_IMPORT
+  MANUAL
+}
+
+model BookingSource {
+  id            String         @id @default(uuid()) @db.Uuid
+  code          String         @unique
+  name          String
+  channel       BookingChannel
+  adapter       SourceAdapter
+  /// false => demo/manual adapter; must be shown as such in the UI.
+  isLive        Boolean        @default(false) @map("is_live")
+  integrationId String?        @map("integration_id") @db.Uuid
+  isActive      Boolean        @default(true) @map("is_active")
+  createdAt     DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  integration Integration?    @relation(fields: [integrationId], references: [id], onDelete: SetNull)
+  bookings    Booking[]
+  imports     BookingImport[]
+
+  @@map("booking_sources")
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  ON_REQUEST
+  CANCELLED
+  FAILED
+}
+
+enum PaymentStatus {
+  UNPAID
+  PARTIALLY_PAID
+  PAID
+  REFUNDED
+  NOT_APPLICABLE
+}
+
+enum ConfirmationStatus {
+  PENDING
+  CONFIRMED
+  REJECTED
+}
+
+enum CancellationStatus {
+  NONE
+  REQUESTED
+  CANCELLED
+  CANCELLED_WITH_FEE
+}
+
+model Booking {
+  id                 String             @id @default(uuid()) @db.Uuid
+  internalRef        String             @unique @map("internal_ref")
+  externalRef        String?            @map("external_ref")
+  sourceId           String             @map("source_id") @db.Uuid
+  channel            BookingChannel
+  supplierId         String?            @map("supplier_id") @db.Uuid
+  hotelId            String?            @map("hotel_id") @db.Uuid
+  leadGuestName      String             @map("lead_guest_name")
+  guestEmail         String?            @map("guest_email")
+  guestPhone         String?            @map("guest_phone")
+  adults             Int                @default(1) @db.SmallInt
+  children           Int                @default(0) @db.SmallInt
+  rooms              Int                @default(1) @db.SmallInt
+  roomType           String?            @map("room_type")
+  boardBasis         String?            @map("board_basis")
+  bookingDate        DateTime           @map("booking_date") @db.Timestamptz(6)
+  checkIn            DateTime           @map("check_in") @db.Date
+  checkOut           DateTime           @map("check_out") @db.Date
+  currency           String             @db.Char(3)
+  sellingAmount      Decimal?           @map("selling_amount") @db.Decimal(12, 2)
+  costAmount         Decimal?           @map("cost_amount") @db.Decimal(12, 2)
+  taxAmount          Decimal?           @map("tax_amount") @db.Decimal(12, 2)
+  status             BookingStatus      @default(PENDING)
+  paymentStatus      PaymentStatus      @default(UNPAID) @map("payment_status")
+  confirmationStatus ConfirmationStatus @default(PENDING) @map("confirmation_status")
+  cancellationStatus CancellationStatus @default(NONE) @map("cancellation_status")
+  confirmationNumber String?            @map("confirmation_number")
+  assignedToId       String?            @map("assigned_to_id") @db.Uuid
+  createdById        String?            @map("created_by_id") @db.Uuid
+  notes              String?
+  /// Fingerprint used for duplicate detection across sources (hotel+guest+dates).
+  dedupeKey          String?            @map("dedupe_key")
+  isDemo             Boolean            @default(false) @map("is_demo")
+  version            Int                @default(1)
+  externalUpdatedAt  DateTime?          @map("external_updated_at") @db.Timestamptz(6)
+  createdAt          DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  source     BookingSource     @relation(fields: [sourceId], references: [id], onDelete: Restrict)
+  supplier   Supplier?         @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+  hotel      Hotel?            @relation(fields: [hotelId], references: [id], onDelete: SetNull)
+  assignedTo User?             @relation("BookingAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+  createdBy  User?             @relation("BookingCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  changes    BookingChange[]
+  documents  BookingDocument[]
+  reconciliationIssues ReconciliationIssue[] @relation("IssueBooking")
+  matchedIssues        ReconciliationIssue[] @relation("IssueMatchedBooking")
+
+  @@unique([sourceId, externalRef])
+  @@index([bookingDate])
+  @@index([checkIn])
+  @@index([status])
+  @@index([supplierId])
+  @@index([assignedToId])
+  @@index([dedupeKey])
+  @@index([channel, bookingDate])
+  @@index([externalRef])
+  @@index([confirmationNumber])
+  // Also: functional index on lower(lead_guest_name) — defined in the phase2 migration SQL.
+  @@map("bookings")
+}
+
+enum BookingChangeType {
+  CREATED
+  UPDATED
+  STATUS_CHANGED
+  IMPORTED
+  SYNCED
+  CANCELLED
+  DOCUMENT_ADDED
+}
+
+enum ChangeOrigin {
+  UI
+  IMPORT
+  SYNC
+  WEBHOOK
+  SYSTEM
+}
+
+model BookingChange {
+  id          String            @id @default(uuid()) @db.Uuid
+  bookingId   String            @map("booking_id") @db.Uuid
+  changedById String?           @map("changed_by_id") @db.Uuid
+  changeType  BookingChangeType @map("change_type")
+  origin      ChangeOrigin
+  /// { field: { from, to } } — PII fields are recorded as "changed" without values.
+  diff        Json
+  createdAt   DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  booking   Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  changedBy User?   @relation(fields: [changedById], references: [id], onDelete: SetNull)
+
+  @@index([bookingId, createdAt])
+  @@map("booking_changes")
+}
+
+model BookingDocument {
+  id           String   @id @default(uuid()) @db.Uuid
+  bookingId    String   @map("booking_id") @db.Uuid
+  fileName     String   @map("file_name")
+  mimeType     String   @map("mime_type")
+  sizeBytes    Int      @map("size_bytes")
+  storageKey   String   @unique @map("storage_key")
+  sha256       String
+  uploadedById String?  @map("uploaded_by_id") @db.Uuid
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  booking    Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  uploadedBy User?   @relation(fields: [uploadedById], references: [id], onDelete: SetNull)
+
+  @@index([bookingId])
+  @@map("booking_documents")
+}
+
+enum ImportStatus {
+  VALIDATING
+  READY
+  COMMITTED
+  FAILED
+}
+
+model BookingImport {
+  id           String       @id @default(uuid()) @db.Uuid
+  sourceId     String       @map("source_id") @db.Uuid
+  fileName     String       @map("file_name")
+  fileSha256   String       @map("file_sha256")
+  status       ImportStatus @default(VALIDATING)
+  totalRows    Int          @default(0) @map("total_rows")
+  createdRows  Int          @default(0) @map("created_rows")
+  updatedRows  Int          @default(0) @map("updated_rows")
+  skippedRows  Int          @default(0) @map("skipped_rows")
+  errorRows    Int          @default(0) @map("error_rows")
+  errors       Json         @default("[]")
+  /// Validated, normalised rows staged between preview and commit; cleared on commit.
+  rows         Json?
+  uploadedById String?      @map("uploaded_by_id") @db.Uuid
+  createdAt    DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  completedAt  DateTime?    @map("completed_at") @db.Timestamptz(6)
+
+  source     BookingSource @relation(fields: [sourceId], references: [id], onDelete: Restrict)
+  uploadedBy User?         @relation(fields: [uploadedById], references: [id], onDelete: SetNull)
+
+  @@index([createdAt])
+  @@map("booking_imports")
+}
+
+enum ReconciliationIssueType {
+  DUPLICATE_SUSPECT
+  AMOUNT_MISMATCH
+  STATUS_MISMATCH
+  MISSING_IN_SOURCE
+  MISSING_REQUIRED_DATA
+}
+
+enum IssueStatus {
+  OPEN
+  RESOLVED
+  DISMISSED
+}
+
+model ReconciliationIssue {
+  id               String                  @id @default(uuid()) @db.Uuid
+  type             ReconciliationIssueType
+  status           IssueStatus             @default(OPEN)
+  bookingId        String?                 @map("booking_id") @db.Uuid
+  matchedBookingId String?                 @map("matched_booking_id") @db.Uuid
+  details          Json
+  /// type + booking pair; unique so re-running reconciliation never duplicates an issue.
+  fingerprint      String                  @unique
+  resolutionNote   String?                 @map("resolution_note")
+  resolvedById     String?                 @map("resolved_by_id") @db.Uuid
+  resolvedAt       DateTime?               @map("resolved_at") @db.Timestamptz(6)
+  createdAt        DateTime                @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  booking        Booking? @relation("IssueBooking", fields: [bookingId], references: [id], onDelete: Cascade)
+  matchedBooking Booking? @relation("IssueMatchedBooking", fields: [matchedBookingId], references: [id], onDelete: Cascade)
+  resolvedBy     User?    @relation(fields: [resolvedById], references: [id], onDelete: SetNull)
+
+  @@index([status, type])
+  @@map("reconciliation_issues")
+}
+
+// ─────────────────────────────── Email follow-ups ───────────────────────────────
+
+enum ConversationStatus {
+  TRACKING
+  REPLIED
+  FOLLOWUP_DUE
+  AWAITING_APPROVAL
+  PAUSED
+  CANCELLED
+  EXHAUSTED
+  NEEDS_REVIEW
+}
+
+model EmailConversation {
+  id                  String             @id @default(uuid()) @db.Uuid
+  integrationId       String             @map("integration_id") @db.Uuid
+  providerThreadId    String             @map("provider_thread_id")
+  originalMessageId   String             @map("original_message_id")
+  subject             String
+  supplierId          String?            @map("supplier_id") @db.Uuid
+  ownerId             String             @map("owner_id") @db.Uuid
+  ruleId              String?            @map("rule_id") @db.Uuid
+  /// External recipients of the original message — the only addresses a follow-up may target.
+  recipients          String[]
+  status              ConversationStatus @default(TRACKING)
+  originalSentAt      DateTime           @map("original_sent_at") @db.Timestamptz(6)
+  lastExternalReplyAt DateTime?          @map("last_external_reply_at") @db.Timestamptz(6)
+  lastCheckedAt       DateTime?          @map("last_checked_at") @db.Timestamptz(6)
+  nextFollowUpAt      DateTime?          @map("next_follow_up_at") @db.Timestamptz(6)
+  followUpCount       Int                @default(0) @map("follow_up_count")
+  pausedReason        String?            @map("paused_reason")
+  createdAt           DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  integration Integration         @relation(fields: [integrationId], references: [id], onDelete: Restrict)
+  supplier    Supplier?           @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+  owner       User                @relation(fields: [ownerId], references: [id], onDelete: Restrict)
+  rule        FollowUpRule?       @relation(fields: [ruleId], references: [id], onDelete: SetNull)
+  messages    EmailMessage[]
+  executions  FollowUpExecution[]
+
+  @@unique([integrationId, providerThreadId])
+  @@index([status, nextFollowUpAt])
+  @@index([ownerId])
+  @@map("email_conversations")
+}
+
+enum MessageDirection {
+  OUTBOUND
+  INBOUND
+}
+
+enum ReplyClassification {
+  ORIGINAL
+  OWN_FOLLOW_UP
+  QUALIFYING_REPLY
+  OUT_OF_OFFICE
+  AUTO_REPLY
+  BOUNCE
+  INTERNAL
+  AMBIGUOUS
+}
+
+model EmailMessage {
+  id                String              @id @default(uuid()) @db.Uuid
+  conversationId    String              @map("conversation_id") @db.Uuid
+  providerMessageId String              @map("provider_message_id")
+  direction         MessageDirection
+  fromAddress       String              @map("from_address")
+  classification    ReplyClassification
+  receivedAt        DateTime            @map("received_at") @db.Timestamptz(6)
+  createdAt         DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  conversation EmailConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@unique([conversationId, providerMessageId])
+  @@map("email_messages")
+}
+
+model FollowUpTemplate {
+  id              String   @id @default(uuid()) @db.Uuid
+  name            String   @unique
+  subjectTemplate String   @map("subject_template")
+  bodyTemplate    String   @map("body_template")
+  isActive        Boolean  @default(true) @map("is_active")
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  rules FollowUpRule[]
+
+  @@map("follow_up_templates")
+}
+
+enum FollowUpSendMode {
+  DRAFT_REVIEW
+  AUTO_SEND
+}
+
+model FollowUpRule {
+  id                  String           @id @default(uuid()) @db.Uuid
+  name                String           @unique
+  delayHours          Int              @map("delay_hours")
+  maxFollowUps        Int              @default(2) @map("max_follow_ups")
+  businessHoursOnly   Boolean          @default(true) @map("business_hours_only")
+  businessStart       String           @default("09:00") @map("business_start")
+  businessEnd         String           @default("18:00") @map("business_end")
+  /// ISO weekday numbers, 1 = Monday … 7 = Sunday.
+  businessDays        Int[]            @default([1, 2, 3, 4, 5]) @map("business_days")
+  timezone            String           @default("UTC")
+  templateId          String           @map("template_id") @db.Uuid
+  sendMode            FollowUpSendMode @default(DRAFT_REVIEW) @map("send_mode")
+  /// AUTO_SEND is only honoured when an administrator approval is recorded.
+  autoSendApprovedById String?         @map("auto_send_approved_by_id") @db.Uuid
+  autoSendApprovedAt  DateTime?        @map("auto_send_approved_at") @db.Timestamptz(6)
+  isActive            Boolean          @default(true) @map("is_active")
+  createdAt           DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  template           FollowUpTemplate    @relation(fields: [templateId], references: [id], onDelete: Restrict)
+  autoSendApprovedBy User?               @relation("AutoSendApprover", fields: [autoSendApprovedById], references: [id], onDelete: SetNull)
+  conversations      EmailConversation[]
+
+  @@map("follow_up_rules")
+}
+
+enum FollowUpExecutionStatus {
+  SCHEDULED
+  DRAFT_CREATED
+  AWAITING_APPROVAL
+  SENDING
+  SENT
+  FAILED
+  SKIPPED
+  CANCELLED
+}
+
+model FollowUpExecution {
+  id                String                  @id @default(uuid()) @db.Uuid
+  conversationId    String                  @map("conversation_id") @db.Uuid
+  sequence          Int
+  status            FollowUpExecutionStatus @default(SCHEDULED)
+  idempotencyKey    String                  @unique @map("idempotency_key")
+  scheduledFor      DateTime                @map("scheduled_for") @db.Timestamptz(6)
+  recipients        String[]
+  attempts          Int                     @default(0)
+  providerDraftId   String?                 @map("provider_draft_id")
+  providerMessageId String?                 @map("provider_message_id")
+  approvedById      String?                 @map("approved_by_id") @db.Uuid
+  lastError         String?                 @map("last_error")
+  skipReason        String?                 @map("skip_reason")
+  attemptedAt       DateTime?               @map("attempted_at") @db.Timestamptz(6)
+  sentAt            DateTime?               @map("sent_at") @db.Timestamptz(6)
+  createdAt         DateTime                @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime                @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  conversation EmailConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  approvedBy   User?             @relation(fields: [approvedById], references: [id], onDelete: SetNull)
+
+  /// One execution per follow-up number per thread → prevents duplicate sends.
+  @@unique([conversationId, sequence])
+  @@index([status, scheduledFor])
+  @@map("follow_up_executions")
+}
+
+// ─────────────────────────────── Booking-site test automation ───────────────────────────────
+
+enum TestEnvironmentKind {
+  SANDBOX
+  STAGING
+  PRODUCTION_READONLY
+}
+
+model TestEnvironment {
+  id                     String              @id @default(uuid()) @db.Uuid
+  name                   String              @unique
+  baseUrl                String              @map("base_url")
+  kind                   TestEnvironmentKind
+  /// Booking create/modify/cancel scenarios only run when true AND kind = SANDBOX.
+  allowBookingMutations  Boolean             @default(false) @map("allow_booking_mutations")
+  encryptedSecret        String?             @map("encrypted_secret")
+  config                 Json                @default("{}")
+  isActive               Boolean             @default(true) @map("is_active")
+  createdAt              DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt              DateTime            @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  runs TestRun[]
+
+  @@map("test_environments")
+}
+
+enum TestJourney {
+  HOTEL_SEARCH
+  ROOM_AVAILABILITY
+  RATE_SELECTION
+  GUEST_VALIDATION
+  BOOKING_CREATE
+  BOOKING_CONFIRMATION
+  BOOKING_MODIFY
+  BOOKING_CANCEL
+  CANCELLATION_POLICY
+  NEGATIVE_INPUTS
+}
+
+model TestScenario {
+  id              String      @id @default(uuid()) @db.Uuid
+  key             String      @unique
+  name            String
+  description     String?
+  journey         TestJourney
+  isCritical      Boolean     @default(false) @map("is_critical")
+  mutatesBookings Boolean     @default(false) @map("mutates_bookings")
+  viewports       String[]    @default(["desktop"])
+  config          Json        @default("{}")
+  cron            String?
+  timezone        String      @default("UTC")
+  isActive        Boolean     @default(true) @map("is_active")
+  createdAt       DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime    @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  runs TestRun[]
+
+  @@map("test_scenarios")
+}
+
+enum TestTrigger {
+  MANUAL
+  SCHEDULED
+}
+
+enum TestRunStatus {
+  QUEUED
+  RUNNING
+  PASSED
+  FAILED
+  ERROR
+  BLOCKED_SAFETY
+  CANCELLED
+}
+
+enum FailureClass {
+  ASSERTION
+  TIMEOUT
+  NETWORK
+  HTTP_ERROR
+  ENVIRONMENT
+  SAFETY_GUARD
+  UNKNOWN
+}
+
+model TestRun {
+  id            String        @id @default(uuid()) @db.Uuid
+  scenarioId    String        @map("scenario_id") @db.Uuid
+  environmentId String        @map("environment_id") @db.Uuid
+  trigger       TestTrigger
+  triggeredById String?       @map("triggered_by_id") @db.Uuid
+  viewport      String
+  status        TestRunStatus @default(QUEUED)
+  failureClass  FailureClass? @map("failure_class")
+  errorMessage  String?       @map("error_message")
+  steps         Json          @default("[]")
+  idempotencyKey String?      @unique @map("idempotency_key")
+  queuedAt      DateTime      @default(now()) @map("queued_at") @db.Timestamptz(6)
+  startedAt     DateTime?     @map("started_at") @db.Timestamptz(6)
+  finishedAt    DateTime?     @map("finished_at") @db.Timestamptz(6)
+  durationMs    Int?          @map("duration_ms")
+
+  scenario    TestScenario    @relation(fields: [scenarioId], references: [id], onDelete: Cascade)
+  environment TestEnvironment @relation(fields: [environmentId], references: [id], onDelete: Restrict)
+  triggeredBy User?           @relation(fields: [triggeredById], references: [id], onDelete: SetNull)
+  artifacts   TestArtifact[]
+
+  @@index([scenarioId, queuedAt])
+  @@index([status])
+  @@map("test_runs")
+}
+
+enum ArtifactKind {
+  SCREENSHOT
+  TRACE
+  VIDEO
+  LOG
+}
+
+model TestArtifact {
+  id         String       @id @default(uuid()) @db.Uuid
+  runId      String       @map("run_id") @db.Uuid
+  kind       ArtifactKind
+  storageKey String       @unique @map("storage_key")
+  sizeBytes  Int          @map("size_bytes")
+  createdAt  DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  run TestRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@index([runId])
+  @@map("test_artifacts")
+}
+
+// ─────────────────────────────── Reports ───────────────────────────────
+
+enum ReportType {
+  DAILY_OPERATIONS
+}
+
+enum ReportFormat {
+  XLSX
+  PDF
+}
+
+model ApprovedRecipient {
+  id           String   @id @default(uuid()) @db.Uuid
+  email        String   @unique
+  label        String?
+  approvedById String?  @map("approved_by_id") @db.Uuid
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  approvedBy User? @relation(fields: [approvedById], references: [id], onDelete: SetNull)
+
+  @@map("approved_recipients")
+}
+
+model ScheduledReport {
+  id                   String         @id @default(uuid()) @db.Uuid
+  name                 String         @unique
+  type                 ReportType     @default(DAILY_OPERATIONS)
+  cron                 String
+  timezone             String
+  filters              Json           @default("{}")
+  formats              ReportFormat[]
+  recipients           String[]
+  channelIntegrationId String?        @map("channel_integration_id") @db.Uuid
+  /// Schedules start disabled; enabling requires a recorded preview.
+  isEnabled            Boolean        @default(false) @map("is_enabled")
+  lastPreviewedAt      DateTime?      @map("last_previewed_at") @db.Timestamptz(6)
+  createdById          String?        @map("created_by_id") @db.Uuid
+  createdAt            DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  channelIntegration Integration? @relation(fields: [channelIntegrationId], references: [id], onDelete: SetNull)
+  createdBy          User?        @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  runs               ReportRun[]
+
+  @@map("scheduled_reports")
+}
+
+enum ReportRunStatus {
+  PENDING
+  GENERATING
+  GENERATED
+  FAILED
+}
+
+model ReportRun {
+  id                String          @id @default(uuid()) @db.Uuid
+  scheduledReportId String?         @map("scheduled_report_id") @db.Uuid
+  idempotencyKey    String          @unique @map("idempotency_key")
+  isPreview         Boolean         @default(false) @map("is_preview")
+  periodStart       DateTime        @map("period_start") @db.Timestamptz(6)
+  periodEnd         DateTime        @map("period_end") @db.Timestamptz(6)
+  timezone          String
+  status            ReportRunStatus @default(PENDING)
+  rowCount          Int?            @map("row_count")
+  warnings          Json            @default("[]")
+  summary           Json?
+  files             Json            @default("[]")
+  error             String?
+  triggeredById     String?         @map("triggered_by_id") @db.Uuid
+  createdAt         DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  generatedAt       DateTime?       @map("generated_at") @db.Timestamptz(6)
+
+  scheduledReport ScheduledReport? @relation(fields: [scheduledReportId], references: [id], onDelete: SetNull)
+  triggeredBy     User?            @relation(fields: [triggeredById], references: [id], onDelete: SetNull)
+  deliveries      ReportDelivery[]
+
+  @@index([scheduledReportId, createdAt])
+  @@map("report_runs")
+}
+
+enum DeliveryChannel {
+  EMAIL
+  INTEGRATION
+}
+
+enum DeliveryStatus {
+  PENDING
+  SENDING
+  SENT
+  FAILED
+}
+
+model ReportDelivery {
+  id                String          @id @default(uuid()) @db.Uuid
+  reportRunId       String          @map("report_run_id") @db.Uuid
+  channel           DeliveryChannel
+  recipient         String
+  status            DeliveryStatus  @default(PENDING)
+  attempts          Int             @default(0)
+  lastError         String?         @map("last_error")
+  providerMessageId String?         @map("provider_message_id")
+  sentAt            DateTime?       @map("sent_at") @db.Timestamptz(6)
+  createdAt         DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  reportRun ReportRun @relation(fields: [reportRunId], references: [id], onDelete: Cascade)
+
+  /// Retrying never creates a second delivery to the same recipient for the same run.
+  @@unique([reportRunId, channel, recipient])
+  @@index([status])
+  @@map("report_deliveries")
+}
+
+// ─────────────────────────────── Background jobs ───────────────────────────────
+
+enum JobStatus {
+  QUEUED
+  RUNNING
+  SUCCEEDED
+  FAILED
+  RETRYING
+  CANCELLED
+}
+
+model JobExecution {
+  id             String    @id @default(uuid()) @db.Uuid
+  queue          String
+  jobName        String    @map("job_name")
+  jobId          String?   @map("job_id")
+  idempotencyKey String?   @unique @map("idempotency_key")
+  status         JobStatus @default(QUEUED)
+  attempts       Int       @default(0)
+  /// Never store PII or secrets here; reference entity ids instead.
+  payload        Json?
+  result         Json?
+  error          String?
+  startedAt      DateTime? @map("started_at") @db.Timestamptz(6)
+  finishedAt     DateTime? @map("finished_at") @db.Timestamptz(6)
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([queue, status])
+  @@index([createdAt])
+  @@map("job_executions")
+}

@@ -1,0 +1,10 @@
+# SITE_ADDRESS=localhost uses Caddy's internal CA (browser will warn once).
+# SITE_ADDRESS=ops.yourcompany.com obtains a public certificate automatically (DNS must point here).
+{$SITE_ADDRESS} {
+	encode zstd gzip
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		-Server
+	}
+	reverse_proxy web:3000
+}

@@ -1,0 +1,11 @@
+**/node_modules
+**/dist
+**/.next
+.data
+.local
+.git
+.env
+**/.env
+deploy/.env.docker
+storage
+coverage
