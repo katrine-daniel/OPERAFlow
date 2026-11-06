@@ -31,7 +31,7 @@ const eventSchema = z.object({
   eventId: z.string().min(1).max(200),
   eventType: z.enum(['booking.created', 'booking.updated', 'booking.cancelled']),
   occurredAt: z.coerce.date(),
-  booking: z.record(z.unknown()),
+  booking: z.record(z.string(), z.unknown()),
 });
 
 @Controller('webhooks/bookings')

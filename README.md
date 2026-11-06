@@ -7,11 +7,21 @@ Internal travel-operations platform: one secure backend, database, audit trail a
 3. **Supplier follow-ups**: Gmail / Microsoft 365 thread tracking with automatic follow-ups
 4. **Booking-site test automation**: Playwright journeys against an authorised sandbox
 
-> **Status: Phases 1–2 of 6 complete.** Authentication, roles, audit, the full database schema and the
-> unified booking registry are built and tested. The registry covers offline entry, CSV/Excel import, the
-> signed webhook for online bookings, documents and reconciliation. Reports, follow-ups and booking-site
-> tests come in Phases 3–5. See [docs/STATUS.md](docs/STATUS.md). The booking-website webhook spec is in
-> [docs/WEBHOOK.md](docs/WEBHOOK.md).
+> **Status: all 6 phases built and tested** (145 unit/integration tests and 9 browser E2E tests).
+> The app has **not yet been deployed on Docker or connected to live external services**. Those need your
+> environment and credentials. See [docs/STATUS.md](docs/STATUS.md) for what works now and what needs
+> configuration.
+
+## Documentation
+| Document | For |
+|---|---|
+| [docs/STATUS.md](docs/STATUS.md) | What is done, verification results, limitations |
+| [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | Installing, upgrading, backups, monitoring |
+| [docs/OPERATIONS.md](docs/OPERATIONS.md) | Day-to-day use by operations, managers, QA, admins |
+| [docs/CREDENTIALS.md](docs/CREDENTIALS.md) | Every external credential and where it comes from |
+| [docs/SECURITY.md](docs/SECURITY.md) | Security checklist |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Design decisions, roles, data model |
+| [docs/WEBHOOK.md](docs/WEBHOOK.md) | Spec for the booking website's signed webhook |
 
 ## Repository layout
 
@@ -74,7 +84,23 @@ npm run typecheck
 npm test
 ```
 
-API tests are integration tests against a real PostgreSQL database (`TEST_DATABASE_URL`, truncated between tests).
+API tests are integration tests against a real PostgreSQL database (`TEST_DATABASE_URL`, truncated between tests; the reset refuses any database not named `*_test`). The Playwright tests need Chromium once:
+
+```bash
+npx playwright install chromium
+```
+
+Browser end-to-end tests (starts its own API on :4100 and web on :3100):
+
+```bash
+npm run e2e
+```
+
+Dependency gate:
+
+```bash
+node scripts/audit-check.mjs
+```
 
 ## Deployment
 

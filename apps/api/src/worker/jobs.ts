@@ -6,6 +6,7 @@ import { ReconciliationService } from '../bookings/reconciliation.service';
 import { FollowupsService } from '../followups/followups.service';
 import { RunnerService } from '../testing/runner.service';
 import { TestingService } from '../testing/testing.service';
+import { RetentionService } from '../ops/retention.service';
 
 export const QUEUES = { reports: 'reports', maintenance: 'maintenance', tests: 'tests' } as const;
 export type JobName = 'scheduled-report' | 'reconciliation' | 'retention';
@@ -21,7 +22,9 @@ export function buildHandlers(app: INestApplicationContext): JobHandlers {
   const followups = app.get(FollowupsService);
   const runner = app.get(RunnerService);
   const testing = app.get(TestingService);
+  const retention = app.get(RetentionService);
   return {
+    retention: () => retention.run(),
     'scheduled-report': (data, firedAt) => reports.runScheduled(String(data.scheduleId), firedAt),
     reconciliation: () => recon.run(null),
     'followup-tick': () => followups.tick(),

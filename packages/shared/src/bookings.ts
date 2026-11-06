@@ -77,9 +77,9 @@ const bookingFields = {
   leadGuestName: z.string().trim().min(1, 'Guest name is required').max(200),
   guestEmail: z.preprocess((v) => (v === '' ? null : v), z.string().trim().toLowerCase().email().max(254).nullable().optional()),
   guestPhone: optNullableText(40),
-  adults: z.coerce.number().int().min(1).max(50).default(1),
-  children: z.coerce.number().int().min(0).max(50).default(0),
-  rooms: z.coerce.number().int().min(1).max(100).default(1),
+  adults: z.coerce.number().int().min(1).max(50),
+  children: z.coerce.number().int().min(0).max(50),
+  rooms: z.coerce.number().int().min(1).max(100),
   roomType: optNullableText(120),
   boardBasis: optNullableText(60),
   bookingDate: z.preprocess(blankToUndef, z.coerce.date().optional()),
@@ -89,10 +89,10 @@ const bookingFields = {
   sellingAmount: moneySchema,
   costAmount: moneySchema,
   taxAmount: moneySchema,
-  status: z.enum(BOOKING_STATUSES).default('PENDING'),
-  paymentStatus: z.enum(PAYMENT_STATUSES).default('UNPAID'),
-  confirmationStatus: z.enum(CONFIRMATION_STATUSES).default('PENDING'),
-  cancellationStatus: z.enum(CANCELLATION_STATUSES).default('NONE'),
+  status: z.enum(BOOKING_STATUSES),
+  paymentStatus: z.enum(PAYMENT_STATUSES),
+  confirmationStatus: z.enum(CONFIRMATION_STATUSES),
+  cancellationStatus: z.enum(CANCELLATION_STATUSES),
   confirmationNumber: optNullableText(100),
   assignedToId: optUuid,
   notes: optNullableText(5000),
@@ -100,10 +100,25 @@ const bookingFields = {
 
 const datesOrdered = (v: { checkIn?: string; checkOut?: string }) => !v.checkIn || !v.checkOut || v.checkOut > v.checkIn;
 
+/**
+ * Defaults apply on create only. (In zod 4, `.default()` still fires inside `.optional()`, so the update
+ * schema must be built from the default-free fields, or partial updates would reset these values.)
+ */
+const createDefaults = {
+  adults: bookingFields.adults.default(1),
+  children: bookingFields.children.default(0),
+  rooms: bookingFields.rooms.default(1),
+  status: bookingFields.status.default('PENDING'),
+  paymentStatus: bookingFields.paymentStatus.default('UNPAID'),
+  confirmationStatus: bookingFields.confirmationStatus.default('PENDING'),
+  cancellationStatus: bookingFields.cancellationStatus.default('NONE'),
+};
+
 export const createBookingSchema = z
   .object({
     sourceId: z.string().uuid('Choose a booking source'),
     ...bookingFields,
+    ...createDefaults,
     /** Set after the user has reviewed a duplicate warning. */
     confirmDuplicate: z.boolean().optional(),
   })

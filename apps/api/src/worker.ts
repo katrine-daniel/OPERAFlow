@@ -9,6 +9,7 @@ import { AppModule } from './app.module';
 import { env } from './config/env';
 import { PrismaService } from './prisma/prisma.service';
 import { buildHandlers, executeTracked, QUEUES } from './worker/jobs';
+import { JsonLogger } from './ops/observability';
 
 const rootEnv = resolve(__dirname, '..', '..', '..', '.env');
 if (existsSync(rootEnv) && process.env.NODE_ENV !== 'production') process.loadEnvFile(rootEnv);
@@ -30,7 +31,7 @@ async function main() {
     process.exit(1);
   }
 
-  const app = await NestFactory.createApplicationContext(AppModule, { logger: ['log', 'warn', 'error'] });
+  const app = await NestFactory.createApplicationContext(AppModule, { logger: new JsonLogger() });
   app.enableShutdownHooks();
   const prisma = app.get(PrismaService);
   const handlers = buildHandlers(app);
@@ -70,6 +71,7 @@ async function main() {
     for (const existing of await queues.reports.getJobSchedulers()) {
       if (existing.key.startsWith('report:') && !wanted.has(existing.key)) await queues.reports.removeJobScheduler(existing.key);
     }
+    await queues.maintenance.upsertJobScheduler('retention', { pattern: config.RETENTION_CRON, tz: config.DEFAULT_TIMEZONE }, { name: 'retention', data: {}, opts: jobDefaults });
     await queues.maintenance.upsertJobScheduler('reconciliation', { pattern: config.RECONCILIATION_CRON, tz: config.DEFAULT_TIMEZONE }, { name: 'reconciliation', data: {}, opts: jobDefaults });
     const scheduledTests = await prisma.testScenario.findMany({ where: { isActive: true, cron: { not: null }, environmentId: { not: null } }, select: { id: true, cron: true, timezone: true } });
     const wantedTests = new Set<string>();

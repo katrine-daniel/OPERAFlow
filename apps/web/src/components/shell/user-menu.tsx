@@ -41,6 +41,7 @@ export function UserMenu({ name, email, role }: { name: string; email: string; r
       {open && (
         <div className="absolute right-0 z-20 mt-1 w-56 rounded-md border border-line bg-surface py-1 shadow-lg">
           <div className="border-b border-line px-3 py-2 text-[12px] text-ink-3">{email}</div>
+          <a href="/account" className="block w-full px-3 py-2 text-left text-[13px] hover:bg-sunken">My account & password</a>
           <button type="button" onClick={logout} className="block w-full px-3 py-2 text-left text-[13px] hover:bg-sunken">
             Sign out
           </button>

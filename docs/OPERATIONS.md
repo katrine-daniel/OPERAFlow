@@ -105,6 +105,15 @@ The Booking sources page shows how each channel is actually connected.
 
 Only published test card numbers are accepted. Critical scenario failures notify all administrators and QA users.
 
+## Everyday tools
+- **Search:** press `/` or use the box at the top to find bookings (by reference, supplier ref, confirmation number, guest or hotel), suppliers, follow-ups and test scenarios.
+- **Notifications:** the bell shows drafts waiting for you, supplier replies, threads needing review, report delivery failures and critical test failures. Click an item to open it.
+- **My account:** change your password. Your other sessions are signed out.
+- **Admin password reset:** Users & roles → Reset password. This also unlocks the account and signs the user out everywhere.
+
+## Settings (administrators)
+**Data retention** sets how long operational data is kept. The worker purges nightly, or you can click **Run purge now**. Bookings are never purged.
+
 ## Audit log
 The audit log records sign-ins, failed sign-ins, lockouts, administrative changes, booking changes, imports, reconciliation runs, document downloads and rejected webhooks. Filter by action prefix (for example `booking.` or `webhook.`). Entries cannot be edited.
 

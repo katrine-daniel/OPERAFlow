@@ -58,6 +58,10 @@ const envSchema = z.object({
   MS_OAUTH_TENANT_ID: z.preprocess((v) => (v === '' ? undefined : v), z.string().optional()),
   MS_OAUTH_CLIENT_ID: z.preprocess((v) => (v === '' ? undefined : v), z.string().optional()),
   MS_OAUTH_CLIENT_SECRET: z.preprocess((v) => (v === '' ? undefined : v), z.string().optional()),
+  /** Enables GET /metrics (Prometheus) when set; scrapers send "Authorization: Bearer <token>". */
+  METRICS_TOKEN: z.preprocess((v) => (v === '' ? undefined : v), z.string().min(16).optional()),
+  /** Daily data-retention purge (cron, DEFAULT_TIMEZONE). */
+  RETENTION_CRON: z.string().default('15 3 * * *'),
   /** How often the worker checks tracked threads. */
   FOLLOWUP_POLL_MINUTES: z.coerce.number().int().min(2).max(120).default(10),
   /** Extra company domains treated as internal (the mailbox's own domain always is). Comma-separated. */

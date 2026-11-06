@@ -20,8 +20,19 @@ interface Summary {
   unreadNotifications: number;
 }
 
+interface AutomationStatus {
+  redisConfigured: boolean;
+  worker: { lastHeartbeat: string | null; healthy: boolean };
+  email: { configured: boolean; detail: string };
+  oauth: { google: boolean; microsoft: boolean };
+}
+
+function L({ href, children }: { href: string; children: React.ReactNode }) {
+  return <Link href={href} className="block rounded-lg transition-shadow hover:shadow-[0_0_0_2px_var(--color-brand-soft)]">{children}</Link>;
+}
+
 export default async function DashboardPage() {
-  const s = await apiGet<Summary>('/dashboard/summary');
+  const [s, status] = await Promise.all([apiGet<Summary>('/dashboard/summary'), apiGet<AutomationStatus>('/integrations/status')]);
   const dateLabel = new Intl.DateTimeFormat('en-GB', { dateStyle: 'full' }).format(new Date(`${s.date}T12:00:00Z`));
 
   return (
@@ -31,21 +42,18 @@ export default async function DashboardPage() {
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
         {s.bookings && (
           <>
-            <Stat label="Bookings today" value={s.bookings.today} hint={`${s.bookings.online} online · ${s.bookings.offline} offline`} />
-            <Stat label="Pending confirmations" value={s.bookings.pendingConfirmations} tone={s.bookings.pendingConfirmations ? 'warn' : undefined} />
-            <Stat label="Missing booking data" value={s.bookings.missingInfo} tone={s.bookings.missingInfo ? 'warn' : undefined} hint="Amounts, supplier, hotel or owner" />
+            <L href={`/bookings?dateField=bookingDate&from=${s.date}&to=${s.date}`}><Stat label="Bookings today" value={s.bookings.today} hint={`${s.bookings.online} online · ${s.bookings.offline} offline`} /></L>
+            <L href="/bookings?confirmationStatus=PENDING"><Stat label="Pending confirmations" value={s.bookings.pendingConfirmations} tone={s.bookings.pendingConfirmations ? 'warn' : undefined} /></L>
+            <L href="/bookings?missingData=true"><Stat label="Missing booking data" value={s.bookings.missingInfo} tone={s.bookings.missingInfo ? 'warn' : undefined} hint="Amounts, supplier, hotel or owner" /></L>
           </>
         )}
-        {s.followUps && <Stat label="Follow-ups due" value={s.followUps.due} hint={`${s.followUps.needsReview} need review`} />}
+        {s.followUps && <L href="/follow-ups"><Stat label="Follow-ups due" value={s.followUps.due} hint={`${s.followUps.needsReview} need review`} /></L>}
         {s.tests && (
-          <Stat
-            label="Failed tests (24h)"
-            value={s.tests.failedLast24h}
-            tone={s.tests.criticalFailedLast24h ? 'bad' : undefined}
-            hint={`${s.tests.criticalFailedLast24h} critical`}
-          />
+          <L href="/testing">
+            <Stat label="Failed tests (24h)" value={s.tests.failedLast24h} tone={s.tests.criticalFailedLast24h ? 'bad' : undefined} hint={`${s.tests.criticalFailedLast24h} critical`} />
+          </L>
         )}
-        {s.reports && <Stat label="Scheduled reports" value={s.reports.scheduledEnabled} hint={`${s.reports.failedDeliveries} failed deliveries`} />}
+        {s.reports && <L href="/reports"><Stat label="Scheduled reports" value={s.reports.scheduledEnabled} hint={`${s.reports.failedDeliveries} failed deliveries`} /></L>}
       </div>
 
       <div className="mt-6 grid gap-4 xl:grid-cols-[1fr_380px]">
@@ -73,6 +81,20 @@ export default async function DashboardPage() {
 
         <Card title="Automation health">
           <div className="divide-y divide-line">
+            <div className="flex items-center justify-between px-4 py-2.5">
+              <span className="text-[13px] text-ink-2">Scheduler / worker</span>
+              <Badge tone={status.worker.healthy ? 'ok' : 'warn'}>{status.worker.healthy ? 'Running' : status.redisConfigured ? 'Not running' : 'Inactive (no Redis)'}</Badge>
+            </div>
+            <div className="flex items-center justify-between px-4 py-2.5">
+              <span className="text-[13px] text-ink-2">Report email</span>
+              <Badge tone={status.email.configured ? 'ok' : 'warn'}>{status.email.configured ? 'Configured' : 'Not configured'}</Badge>
+            </div>
+            <div className="flex items-center justify-between px-4 py-2.5">
+              <span className="text-[13px] text-ink-2">Mailbox OAuth</span>
+              <Badge tone={status.oauth.google || status.oauth.microsoft ? 'ok' : 'warn'}>
+                {[status.oauth.google && 'Google', status.oauth.microsoft && 'Microsoft'].filter(Boolean).join(' + ') || 'Not configured'}
+              </Badge>
+            </div>
             <HealthRow label="Background jobs failed (24h)" value={s.automation.failedJobsLast24h} />
             {s.tests && (
               <HealthRow
@@ -86,7 +108,7 @@ export default async function DashboardPage() {
             <div className="mb-2 text-[12px] font-medium text-ink-3">Integrations</div>
             {s.automation.integrations.length === 0 ? (
               <p className="text-[13px] text-ink-3">
-                No integrations connected. Mailboxes, booking APIs and report channels are configured in Phase 2–4.
+                No integrations connected. Connect mailboxes and chat channels under <Link href="/integrations" className="text-brand hover:underline">Integrations</Link>, and the booking website under <Link href="/sources" className="text-brand hover:underline">Booking sources</Link>.
               </p>
             ) : (
               <ul className="space-y-1.5">

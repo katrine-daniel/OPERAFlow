@@ -21,7 +21,11 @@ import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../bookings/storage.service';
 import { ReportsService, type StoredFile } from './reports.service';
 
-const updateSchema = scheduleSchema.partial();
+// No top-level defaults on update (zod 4 applies .default()/.prefault() inside .partial(), which would wipe
+// recipients and reset filters when a client only renames a schedule).
+const updateSchema = scheduleSchema
+  .extend({ recipients: z.array(z.string().trim().toLowerCase().email()).max(50), filters: reportFiltersSchema })
+  .partial();
 const runsQuery = z.object({ scheduleId: z.string().uuid().optional() });
 
 export function nextRuns(cron: string, timezone: string, count = 3): string[] {

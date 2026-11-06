@@ -28,7 +28,8 @@ export const scheduleSchema = z.object({
   formats: z.array(z.enum(REPORT_FORMATS)).min(1),
   recipients: z.array(z.string().trim().toLowerCase().email()).max(50).default([]),
   channelIntegrationId: z.preprocess((v) => (v === '' ? null : v), z.string().uuid().nullable().optional()),
-  filters: reportFiltersSchema.default({}),
+  // prefault: an omitted value is parsed through the schema, so nested defaults apply.
+  filters: reportFiltersSchema.prefault({}),
 });
 export type ScheduleInput = z.infer<typeof scheduleSchema>;
 
@@ -42,7 +43,7 @@ export const adhocReportSchema = z.object({
   date: isoDate,
   timezone: z.string().refine(isValidTimeZone, 'Unknown IANA timezone'),
   formats: z.array(z.enum(REPORT_FORMATS)).min(1).default(['XLSX']),
-  filters: reportFiltersSchema.default({}),
+  filters: reportFiltersSchema.prefault({}),
 });
 
 export const approvedRecipientSchema = z.object({

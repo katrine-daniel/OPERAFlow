@@ -21,11 +21,13 @@
     "dev:web": "npm run dev -w @operaflow/web",
     "lint": "eslint .",
     "typecheck": "npm run typecheck --workspaces --if-present",
-    "test": "npm run test --workspaces --if-present"
+    "test": "npm run test --workspaces --if-present",
+    "e2e": "npm run build -w @operaflow/api && playwright test -c e2e/playwright.config.ts"
   },
   "devDependencies": {
     "@eslint/js": "^9.36.0",
     "@next/eslint-plugin-next": "^15.5.4",
+    "@playwright/test": "^1.65.0",
     "@types/node": "^24.5.2",
     "embedded-postgres": "^17.5.0-beta.15",
     "eslint": "^9.36.0",
@@ -41,5 +43,10 @@
     "@prisma/engines@6.19.3": true,
     "esbuild@0.28.2": true,
     "msgpackr-extract": false
+  },
+  "overrides": {
+    "multer": "^2.5.0",
+    "uuid": "^11.1.1",
+    "postcss": "^8.5.32"
   }
 }

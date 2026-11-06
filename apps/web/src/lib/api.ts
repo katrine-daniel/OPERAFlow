@@ -23,6 +23,7 @@ export async function apiGet<T>(path: string): Promise<T> {
     cache: 'no-store',
   });
   if (res.status === 401) redirect('/login');
+  if (res.status === 403) redirect('/forbidden');
   if (!res.ok) {
     const body = (await res.json().catch(() => ({}))) as { message?: string };
     throw new ApiError(res.status, body.message ?? res.statusText);

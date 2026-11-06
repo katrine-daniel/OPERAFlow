@@ -222,14 +222,79 @@ The 15 new API tests:
 - The website's sandbox URL, test accounts, and the payment provider's test-mode hosts must be supplied (see `docs/CREDENTIALS.md`).
 - The demo sandbox (`npx tsx apps/api/test/fixtures/sandbox-site.ts`) exists only for trying the engine.
 
-## Remaining phases
-- **Phase 6:** E2E tests, hardening (MFA/SSO option, retention jobs, upload scanning), observability, deployment verification
+## Phase 6: Hardening, observability, E2E, deployment ✅ (2026-11-07)
+
+**Delivered**
+- **Data retention:** admin-editable periods with safety minimums, a nightly worker job, and "Run purge now". It purges sessions, read notifications, finished job records, test artifacts, report files (run history is kept) and old audit entries. Bookings are never purged.
+- **Notifications:** a header bell with an unread count, mark read / mark all read, and links to the item. Owners are notified about drafts, replies, review needs, delivery failures and critical test failures.
+- **Global search:** in the header (press `/`), across bookings, suppliers, follow-ups and test scenarios, limited to what each role may see.
+- **Account management:** a "My account" page with password change (other sessions are signed out); admins can reset a user's password from Users & roles.
+- **Clean error pages:** a "no access" page for forbidden areas, and an error page that shows a reference code instead of internals.
+- **Observability:**
+  - JSON logs with `X-Request-Id` on every response, and the request ID in error bodies.
+  - Generic 500 responses that don't leak stack traces.
+  - `/health/ready` (database + Redis) and Prometheus `/metrics` (bearer token): HTTP counters/latency plus business gauges.
+- **Security:**
+  - A strict content security policy on the web app.
+  - The CI dependency gate (`scripts/audit-check.mjs`) with a reviewed allow-list.
+  - Production dependency advisories cut from 12 (8 high) to 3, all from one accepted chain in the Prisma CLI. The fixes:
+    - **zod** moved to v4. This upgrade exposed and fixed a dangerous change: defaults applied during partial updates would have reset booking status and occupancy, supplier timezones and report recipients. Regression tests now guard it.
+    - **nodemailer** moved to 10 and **csv-parse** to 7.
+    - Overrides pin patched **multer**, **uuid** and **postcss**.
+- **Browser E2E suite** (`npm run e2e`, Playwright Test, real API + Next.js + PostgreSQL, desktop and mobile):
+  - login errors, and the anonymous redirect;
+  - role isolation (QA);
+  - an offline booking with inline hotel, missing-data flags and the duplicate warning;
+  - CSV import with preview, partial errors and commit;
+  - reconciliation and global search;
+  - recipient approval, report preview and XLSX download;
+  - notifications and sign-out;
+  - mobile layout with no horizontal scroll and a working drawer.
+- **CI:** dependency gate → lint → typecheck → unit/integration (with Chromium) → build → E2E (report uploaded on failure) → Docker image builds and compose validation.
+- **Deployment:** a worker service in compose, Chromium in the API image, `deploy/backup.sh` (database + storage, with a restore recipe), a full deployment guide with a first-deployment checklist, and monitoring guidance.
+
+**Final verification (this machine)**
+| Check | Result |
+|---|---|
+| `npm run lint` | pass |
+| `npm run typecheck` (4 workspaces) | pass |
+| `packages/shared` unit tests | 25/25 |
+| `apps/api` unit + integration (PostgreSQL 17, SMTP test server, real Chromium) | 111/111 |
+| `npm run e2e` (browser, desktop + mobile) | 9/9 |
+| `node scripts/audit-check.mjs` | pass (1 accepted advisory) |
+| Production `next build` + standalone server | pass; strict CSP served, `/api` proxy working |
+| Worker without Redis | refuses to start with an explicit "INACTIVE" message |
+| Manual browser check | settings, search, notification bell, request IDs |
+| Docker images / compose up | **not run here** (no Docker); built and validated in CI |
+
+---
+
+# Overall status
+
+All six phases are built and tested. **This is not yet a verified production deployment.** The application has never run on Docker, and no live external integration has been connected. Both need your environment and credentials.
+
+## What works without any external credentials
+- Users and roles, the audit log, the dashboard, notifications and search.
+- The booking registry: offline entry, CSV/Excel import, duplicate detection, reconciliation and documents.
+- Report generation, preview and download.
+- The booking-site test engine against any reachable sandbox. The local demo is `npx tsx apps/api/test/fixtures/sandbox-site.ts`.
+
+## What needs configuration before it does anything
+| Capability | Needs |
+|---|---|
+| Scheduled reports, follow-up polling, scheduled tests, nightly reconciliation and retention | `REDIS_URL` + the worker (provided by compose) |
+| Report email | SMTP relay credentials |
+| Teams/Slack summaries | A webhook URL |
+| Supplier follow-ups | A Google or Microsoft OAuth app, then connect the mailbox (**adapters never run against a live mailbox**) |
+| Online bookings in real time | The booking website must send signed webhooks (`docs/WEBHOOK.md`) |
+| Website API polling sync, TBO live API | **Not built.** They need the vendors' API specifications and credentials; until then these sources are labelled manual/CSV. |
+| Booking-site tests on the real site | Sandbox URL, test accounts, and scenario selectors that match the site's HTML |
 
 ## Known limitations
-- No live integrations are configured (see `CREDENTIALS.md`).
-- Redis is provisioned in compose but unused until Phase 3.
-- The admin password-reset endpoint has no UI yet.
-- Reconciliation is manual (button). It will be scheduled with the Phase 3 worker.
-- Document storage is local disk (compose volume). For multi-host deployments, swap `StorageService` for S3 or Azure Blob.
-- Client-side timestamps use the timezone baked in at web build time (`DEFAULT_TIMEZONE` during `next build`). Server-rendered pages use the runtime value.
-- **Not production-ready**: modules 1–4 are not built, and the deployment has not been verified.
+- No MFA or SSO yet. Recommended before exposing the app beyond the office network.
+- Document and report storage is local disk (a compose volume). For multiple hosts, swap `StorageService` for S3 or Azure Blob.
+- PDF reports use standard fonts; non-Latin characters are flagged and replaced (Excel keeps exact values).
+- Timestamps in client-side widgets use the timezone baked in at web build time; server-rendered pages use runtime `DEFAULT_TIMEZONE`.
+- Reconciliation's "missing in source" check needs a full export from the source system.
+- The single in-process inline test runner (used without Redis) runs one browser at a time inside the API.
+- Accepted dependency advisory: `deepmerge-ts` in the Prisma CLI (migration-time only); review by 2027-02-01.

@@ -39,6 +39,26 @@ export function UserRowActions({ id, role, isActive }: { id: string; role: Role;
       <button
         type="button"
         disabled={busy}
+        onClick={async () => {
+          const pw = prompt('New temporary password (12+ chars, three of: lower, upper, digit, symbol). The user is signed out everywhere and the account is unlocked.');
+          if (!pw) return;
+          setBusy(true);
+          try {
+            await apiSend('POST', `/users/${id}/reset-password`, { password: pw });
+            alert('Password reset. Share it through a secure channel.');
+          } catch (err) {
+            alert(err instanceof ClientApiError ? (err.issues.map((i) => i.message).join(' · ') || err.message) : 'Reset failed');
+          } finally {
+            setBusy(false);
+          }
+        }}
+        className="h-7 rounded border border-line-strong px-2 text-[12px] text-ink-2 hover:bg-sunken"
+      >
+        Reset password
+      </button>
+      <button
+        type="button"
+        disabled={busy}
         onClick={() => {
           if (!isActive || confirm('Deactivate this user? They will be signed out immediately.')) void update({ isActive: !isActive });
         }}

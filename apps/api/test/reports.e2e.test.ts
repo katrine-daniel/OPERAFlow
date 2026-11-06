@@ -109,6 +109,9 @@ describe('approved recipients and schedule safeguards', () => {
     expect(enabled.body.nextRuns).toHaveLength(3);
     // 08:00 Dubai = 04:00 UTC
     expect(enabled.body.nextRuns[0]).toMatch(/T04:00:00\.000Z$/);
+    // A rename touches nothing else: recipients, filters and the enabled state survive.
+    const renamed = await http().patch(`/reports/schedules/${s.id}`).set('Origin', ORIGIN).set('Cookie', manager).send({ name: 'Daily operations (renamed)' });
+    expect(renamed.body).toMatchObject({ isEnabled: true, recipients: ['ops@example.test'], filters: { period: 'PREVIOUS_DAY', dateField: 'bookingDate' } });
     // Changing report content disables it again until re-previewed.
     const upd = await http().patch(`/reports/schedules/${s.id}`).set('Origin', ORIGIN).set('Cookie', manager).send({ formats: ['PDF'] });
     expect(upd.body).toMatchObject({ isEnabled: false, lastPreviewedAt: null });

@@ -129,6 +129,18 @@ describe('editing, concurrency and status changes', () => {
     expect((await post(`/bookings/${b.id}/cancel`, { version: 3, reason: 'again' })).status).toBe(400);
   });
 
+  it('partial updates never reset omitted fields to defaults', async () => {
+    const { body: b } = await post('/bookings', { ...offline(), adults: 3, status: 'ON_REQUEST', paymentStatus: 'PAID' });
+    await patch(`/bookings/${b.id}`, { version: 1, notes: 'only notes' });
+    const after = await prisma.booking.findUniqueOrThrow({ where: { id: b.id } });
+    expect(after).toMatchObject({ adults: 3, status: 'ON_REQUEST', paymentStatus: 'PAID', notes: 'only notes' });
+
+    const admin = await login(app, (await createUser(prisma, 'ADMIN')).email);
+    await prisma.supplier.update({ where: { id: reg.supplier.id }, data: { timezone: 'Asia/Dubai' } });
+    await patch(`/suppliers/${reg.supplier.id}`, { name: 'Renamed Supplier' }, admin);
+    expect((await prisma.supplier.findUniqueOrThrow({ where: { id: reg.supplier.id } })).timezone).toBe('Asia/Dubai');
+  });
+
   it('confirms with a confirmation number', async () => {
     const { body: b } = await post('/bookings', offline());
     const res = await post(`/bookings/${b.id}/confirm`, { version: 1, confirmationNumber: 'HTL-55102' });

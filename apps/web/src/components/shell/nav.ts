@@ -38,6 +38,7 @@ export const NAV_SECTIONS: { title: string; items: NavItem[] }[] = [
     items: [
       { href: '/users', label: 'Users & roles', permission: 'users:read' },
       { href: '/audit', label: 'Audit log', permission: 'audit:read' },
+      { href: '/settings', label: 'Settings', permission: 'settings:manage' },
     ],
   },
 ];

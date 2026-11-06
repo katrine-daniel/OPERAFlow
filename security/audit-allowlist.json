@@ -1,0 +1,10 @@
+{
+  "GHSA-ggr8-5vv4-36mx": {
+    "package": "deepmerge-ts (via prisma CLI → @prisma/config)",
+    "severity": "high",
+    "reason": "Only used by the Prisma CLI while loading its own configuration at migration time (migrate container / developer machines). No user-controlled data reaches it; the running API and worker use @prisma/client, which does not depend on it. Fix requires the Prisma 7 major upgrade.",
+    "mitigation": "Prisma CLI runs only in the one-shot migrate job and CI.",
+    "acceptedBy": "OPERAFlow build, 2026-11-07",
+    "reviewBy": "2027-02-01"
+  }
+}

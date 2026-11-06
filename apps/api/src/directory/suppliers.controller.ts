@@ -1,5 +1,5 @@
 import { Body, ConflictException, Controller, Delete, Get, NotFoundException, Param, ParseUUIDPipe, Patch, Post, Query } from '@nestjs/common';
-import { supplierContactSchema, supplierSchema } from '@operaflow/shared';
+import { isValidTimeZone, supplierContactSchema, supplierSchema } from '@operaflow/shared';
 import { z } from 'zod';
 import { AuditService } from '../audit/audit.service';
 import { AuthUser, CurrentUser, ReqMeta, RequestMeta, RequirePermissions } from '../common/auth-context';
@@ -8,7 +8,11 @@ import { ZodPipe } from '../common/zod.pipe';
 import { PrismaService } from '../prisma/prisma.service';
 
 const listQuery = z.object({ q: z.string().trim().max(100).optional(), includeInactive: z.enum(['true', 'false']).optional() });
-const updateSchema = supplierSchema.partial().refine((v) => Object.keys(v).length > 0, 'No changes supplied');
+// No defaults on update (zod 4 applies .default() even inside .partial(), which would reset omitted fields).
+const updateSchema = supplierSchema
+  .extend({ timezone: z.string().trim().refine(isValidTimeZone, 'Unknown IANA timezone') })
+  .partial()
+  .refine((v) => Object.keys(v).length > 0, 'No changes supplied');
 
 @Controller('suppliers')
 export class SuppliersController {

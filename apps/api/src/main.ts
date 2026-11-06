@@ -7,6 +7,7 @@ import type { NestExpressApplication } from '@nestjs/platform-express';
 import { AppModule } from './app.module';
 import { configureApp } from './bootstrap';
 import { env } from './config/env';
+import { JsonLogger } from './ops/observability';
 
 // Local development convenience: load the repo-root .env if present. In containers,
 // configuration comes from the real environment and this file does not exist.
@@ -15,7 +16,7 @@ if (existsSync(rootEnv) && process.env.NODE_ENV !== 'production') process.loadEn
 
 async function main() {
   const config = env(); // fail fast on bad configuration
-  const app = await NestFactory.create<NestExpressApplication>(AppModule, { bodyParser: false, rawBody: true });
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, { bodyParser: false, rawBody: true, logger: new JsonLogger() });
   configureApp(app);
   await app.listen(config.API_PORT);
   new Logger('Bootstrap').log(`OPERAFlow API listening on :${config.API_PORT} (${config.NODE_ENV})`);
