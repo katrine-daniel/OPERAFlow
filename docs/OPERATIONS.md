@@ -53,6 +53,19 @@ The Booking sources page shows how each channel is actually connected.
 - **Booking website (webhook):** an administrator issues a signing secret and gives it to the website operator together with `docs/WEBHOOK.md`. The badge reads "Receiving data" only after the first verified event.
 - **Booking website (API sync):** not implemented. It needs the vendor's API specification and credentials.
 
+## Daily reports
+1. **Approve recipients first.** An administrator approves addresses under Reports → Approved recipients. Reports contain guest data, so nothing can be emailed anywhere else.
+2. **Create a schedule:** pick a time, days and timezone; whether it covers the previous day or the same day; bookings made or arrivals; formats; recipients; and optionally a Teams or Slack channel (which gets a summary only).
+3. **Preview:** generates the report without sending it. Open it, check the numbers and download the files.
+4. **Enable.** The next three run times are shown. Changing filters, formats or timezone later turns the schedule off until you preview again.
+5. **Run & send now** re-sends a specific day manually.
+
+**Delivery problems:** open the run. Each recipient shows Sent or Failed with the reason; "Retry failed deliveries" retries only the failed ones and never re-sends to people who already received it. "Outcome unknown" means sending was interrupted, so check with the recipient before retrying.
+
+**Reading the report:** totals are per currency and never converted. "Excluded from margin" counts bookings missing a price or cost. MISSING cells mean the data was never entered; nothing is assumed.
+
+**Scheduler status:** the Reports and Integrations pages show whether the background worker is running. If it says "inactive", schedules won't fire, though previews and manual runs still work.
+
 ## Audit log
 The audit log records sign-ins, failed sign-ins, lockouts, administrative changes, booking changes, imports, reconciliation runs, document downloads and rejected webhooks. Filter by action prefix (for example `booking.` or `webhook.`). Entries cannot be edited.
 

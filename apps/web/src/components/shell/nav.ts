@@ -17,7 +17,7 @@ export const NAV_SECTIONS: { title: string; items: NavItem[] }[] = [
       { href: '/reconciliation', label: 'Reconciliation', permission: 'bookings:read' },
       { href: '/imports', label: 'Imports', permission: 'bookings:import' },
       { href: '/follow-ups', label: 'Supplier follow-ups', permission: 'followups:read', phase: 4 },
-      { href: '/reports', label: 'Daily reports', permission: 'reports:read', phase: 3 },
+      { href: '/reports', label: 'Daily reports', permission: 'reports:read' },
     ],
   },
   {
@@ -30,7 +30,7 @@ export const NAV_SECTIONS: { title: string; items: NavItem[] }[] = [
       { href: '/suppliers', label: 'Suppliers', permission: 'suppliers:read' },
       { href: '/hotels', label: 'Hotels', permission: 'bookings:read' },
       { href: '/sources', label: 'Booking sources', permission: 'bookings:read' },
-      { href: '/integrations', label: 'Integrations', permission: 'integrations:read', phase: 4 },
+      { href: '/integrations', label: 'Integrations', permission: 'integrations:read' },
     ],
   },
   {

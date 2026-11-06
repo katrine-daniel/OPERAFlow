@@ -70,8 +70,53 @@
 - **TBO live API:** needs authorised credentials. TBO bookings use manual entry or CSV for now.
 - **`MISSING_IN_SOURCE` reconciliation:** needs a full snapshot export from the source to compare against.
 
+## Phase 3: Reporting engine, scheduler, delivery ✅ (2026-11-07)
+
+**Delivered**
+- **Report engine:**
+  - Reports on one organisation-local day (DST-safe): either bookings made that day or arrivals.
+  - Optional filters for channel, source and supplier, and whether cancelled bookings are included.
+  - Every field the brief lists is included.
+  - Totals are per currency and never converted.
+  - Missing values stay MISSING: excluded from totals, counted, and listed as warnings. The report also shows the open reconciliation issues.
+- **Exports:**
+  - **Excel:** Summary, Bookings and Warnings sheets, with frozen headers, auto-filter, highlighted MISSING cells, and formula-injection protection.
+  - **PDF:** landscape, paginated. Characters outside Latin-1 are flagged, never silently dropped.
+- **Schedules:**
+  - Defined by time + weekdays + IANA timezone (stored as cron, upcoming runs shown).
+  - Created disabled, and can only be enabled after a preview (enforced by both the API and a DB constraint).
+  - Changing filters, formats or timezone disables the schedule until it is previewed again.
+- **Approved recipients:** only administrators can approve them. Schedules can't use unapproved addresses, and delivery re-checks approval.
+- **Delivery:**
+  - Email goes through an SMTP relay (TLS required in production) with the XLSX/PDF attachments.
+  - Optional Teams or Slack summary with no guest data. Webhook URLs are restricted to allow-listed hosts (SSRF guard) and stored encrypted.
+  - Exactly one delivery row per (run, channel, recipient), with an atomic claim per attempt; retries only touch failed rows; an interrupted send is surfaced as "outcome unknown" rather than resent.
+  - Failures notify the schedule owner.
+- **Idempotency:** a scheduled run is keyed by schedule + report day, so a queue retry never produces a second report or duplicate emails.
+- **Worker** (`apps/api/dist/worker.js`, compose service `worker`):
+  - BullMQ on Redis, with one job scheduler per enabled schedule, synced from the DB every minute.
+  - Nightly reconciliation (`RECONCILIATION_CRON`).
+  - Every job is recorded in `job_executions`, with a heartbeat for health checks.
+  - Refuses to start without `REDIS_URL`, and the UI then says "scheduler inactive".
+- **UI:**
+  - Reports page: schedules, preview, enable/disable, run & send, one-off report, approved recipients, run history.
+  - Run detail page: summary, currency totals, deliveries with retry, warnings, downloads.
+  - Integrations page: worker, SMTP and OAuth status; chat channels with a real "Test" button.
+- **Safety fixes found during verification:**
+  - Test reset now refuses any database not named `*_test`, and a root-level vitest run is blocked. A mis-directed test run had truncated the local dev database, which held only seed/test data and was re-seeded.
+  - The login form uses `method="post"`, so a pre-hydration native submit can never put credentials in a URL.
+
+**Verification**
+| Check | Result |
+|---|---|
+| Lint, typecheck | pass |
+| shared unit tests | 25/25 |
+| API unit + integration (PostgreSQL 17, real SMTP server via `smtp-server`) | 59/59 (11 new) |
+| Browser (admin) | Status banners show "scheduler inactive / email not configured" honestly → create schedule → preview (Dubai previous day) → run page → PDF download (`%PDF`, attachment) |
+| Worker without Redis | Exits with an explicit "INACTIVE" message |
+| BullMQ against a live Redis | **Not run**: no Redis on this machine. Job handlers and idempotency are tested directly; the BullMQ wiring is unverified until deployment. |
+
 ## Remaining phases
-- **Phase 3:** Worker (BullMQ/Redis), report engine (XLSX/PDF), schedules, approved recipients, delivery history & retries
 - **Phase 4:** Gmail / Microsoft Graph OAuth, thread tracking, reply classification, follow-up engine
 - **Phase 5:** Playwright test engine, environments, scheduled runs, artifacts, alerts
 - **Phase 6:** E2E tests, hardening (MFA/SSO option, retention jobs, upload scanning), observability, deployment verification

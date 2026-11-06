@@ -33,6 +33,24 @@ const envSchema = z.object({
   MAX_IMPORT_ROWS: z.coerce.number().int().positive().default(5000),
   /** Allowed clock skew for signed webhooks. */
   WEBHOOK_TOLERANCE_SECONDS: z.coerce.number().int().positive().default(300),
+
+  /** Public URL of the web app, used for links in emails and chat messages. */
+  APP_BASE_URL: z.string().url().default('http://localhost:3000'),
+  /** BullMQ/Redis. When unset, the worker refuses to start and scheduled automation is reported as inactive. */
+  REDIS_URL: z.preprocess((v) => (v === '' ? undefined : v), z.string().url().optional()),
+  RECONCILIATION_CRON: z.string().default('30 5 * * *'),
+  REPORT_DELIVERY_MAX_ATTEMPTS: z.coerce.number().int().min(1).max(10).default(5),
+
+  // Outbound email for report delivery (SMTP relay, e.g. Microsoft 365 / Google Workspace SMTP relay).
+  SMTP_HOST: z.preprocess((v) => (v === '' ? undefined : v), z.string().optional()),
+  SMTP_PORT: z.coerce.number().int().positive().default(587),
+  /** true = implicit TLS (port 465). Otherwise STARTTLS is required unless SMTP_ALLOW_INSECURE=true. */
+  SMTP_SECURE: bool,
+  SMTP_USER: z.preprocess((v) => (v === '' ? undefined : v), z.string().optional()),
+  SMTP_PASSWORD: z.preprocess((v) => (v === '' ? undefined : v), z.string().optional()),
+  SMTP_FROM: z.preprocess((v) => (v === '' ? undefined : v), z.string().optional()),
+  /** Development/test only: allow plaintext SMTP. Refused in production. */
+  SMTP_ALLOW_INSECURE: bool,
 });
 
 export type Env = z.infer<typeof envSchema>;
@@ -47,6 +65,9 @@ export function loadEnv(source: NodeJS.ProcessEnv = process.env): Env {
   }
   if (parsed.data.NODE_ENV === 'production' && !parsed.data.COOKIE_SECURE) {
     throw new Error('COOKIE_SECURE must be true in production');
+  }
+  if (parsed.data.NODE_ENV === 'production' && parsed.data.SMTP_ALLOW_INSECURE) {
+    throw new Error('SMTP_ALLOW_INSECURE is not permitted in production');
   }
   return parsed.data;
 }

@@ -35,7 +35,8 @@ export function LoginForm() {
   }
 
   return (
-    <form onSubmit={onSubmit} className="mt-6 space-y-4" noValidate>
+    // method="post": if JavaScript hasn't loaded yet, a native submit must never put credentials in the URL.
+    <form onSubmit={onSubmit} method="post" className="mt-6 space-y-4" noValidate>
       <label className="block">
         <span className="mb-1.5 block text-[13px] font-medium text-ink-2">Work email</span>
         <input name="email" type="email" autoComplete="username" required className={inputClass} />

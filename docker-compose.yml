@@ -14,6 +14,18 @@ x-app-env: &app-env
   COOKIE_SECURE: 'true'
   DEFAULT_TIMEZONE: ${DEFAULT_TIMEZONE:-UTC}
   REDIS_URL: redis://redis:6379
+  APP_BASE_URL: https://${SITE_ADDRESS:-localhost}
+  SMTP_HOST: ${SMTP_HOST:-}
+  SMTP_PORT: ${SMTP_PORT:-587}
+  SMTP_SECURE: ${SMTP_SECURE:-false}
+  SMTP_USER: ${SMTP_USER:-}
+  SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+  SMTP_FROM: ${SMTP_FROM:-}
+  GOOGLE_OAUTH_CLIENT_ID: ${GOOGLE_OAUTH_CLIENT_ID:-}
+  GOOGLE_OAUTH_CLIENT_SECRET: ${GOOGLE_OAUTH_CLIENT_SECRET:-}
+  MS_OAUTH_TENANT_ID: ${MS_OAUTH_TENANT_ID:-}
+  MS_OAUTH_CLIENT_ID: ${MS_OAUTH_CLIENT_ID:-}
+  MS_OAUTH_CLIENT_SECRET: ${MS_OAUTH_CLIENT_SECRET:-}
 
 services:
   postgres:
@@ -55,6 +67,19 @@ services:
   api:
     build: { context: ., dockerfile: apps/api/Dockerfile, target: runtime }
     restart: unless-stopped
+    environment: *app-env
+    volumes:
+      - storage:/app/storage
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      redis: { condition: service_healthy }
+
+  # Background jobs: report schedules, delivery retries, nightly reconciliation, follow-ups, scheduled tests.
+  worker:
+    build: { context: ., dockerfile: apps/api/Dockerfile, target: runtime }
+    restart: unless-stopped
+    command: ['node', 'apps/api/dist/worker.js']
+    healthcheck: { disable: true }
     environment: *app-env
     volumes:
       - storage:/app/storage

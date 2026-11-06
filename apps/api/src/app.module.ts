@@ -8,6 +8,7 @@ import { OriginGuard, PermissionsGuard, SessionAuthGuard } from './common/guards
 import { AuditModule } from './audit/audit.module';
 import { AuthModule } from './auth/auth.module';
 import { BookingsModule } from './bookings/bookings.module';
+import { ReportsModule } from './reports/reports.module';
 import { UsersController } from './users/users.controller';
 import { DashboardController } from './dashboard/dashboard.controller';
 import { HealthController } from './health/health.controller';
@@ -20,6 +21,7 @@ import { HealthController } from './health/health.controller';
     AuditModule,
     AuthModule,
     BookingsModule,
+    ReportsModule,
   ],
   controllers: [UsersController, DashboardController, HealthController],
   providers: [

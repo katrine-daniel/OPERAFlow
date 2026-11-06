@@ -20,6 +20,9 @@ export async function createTestApp(): Promise<INestApplication> {
 }
 
 export async function resetDatabase(prisma: PrismaClient): Promise<void> {
+  // Safety: never truncate anything but a dedicated *_test database, whatever the environment says.
+  const [{ db }] = await prisma.$queryRaw<{ db: string }[]>`SELECT current_database() AS db`;
+  if (!db.endsWith('_test')) throw new Error(`Refusing to reset database "${db}": tests may only run against a *_test database`);
   const tables = await prisma.$queryRaw<{ tablename: string }[]>`
     SELECT tablename FROM pg_tables WHERE schemaname = 'public' AND tablename <> '_prisma_migrations'`;
   if (tables.length === 0) return;
