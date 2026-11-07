@@ -8,8 +8,12 @@
 import { PrismaClient, Role, TestJourney } from '@prisma/client';
 import { hash } from '@node-rs/argon2';
 import { randomBytes } from 'node:crypto';
-import { mkdirSync, appendFileSync } from 'node:fs';
+import { mkdirSync, appendFileSync, existsSync } from 'node:fs';
 import { resolve } from 'node:path';
+
+// Seed settings (SEED_ADMIN_EMAIL, SEED_DEMO_USERS, DEFAULT_TIMEZONE…) live in the repo-root .env.
+const rootEnv = resolve(__dirname, '..', '..', '..', '.env');
+if (existsSync(rootEnv)) process.loadEnvFile(rootEnv);
 
 const prisma = new PrismaClient();
 const credsFile = resolve(__dirname, '..', '..', '..', '.local', 'seed-credentials.txt');

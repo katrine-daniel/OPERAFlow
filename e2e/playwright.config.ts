@@ -40,6 +40,8 @@ export default defineConfig({
         DEFAULT_TIMEZONE: 'Asia/Dubai',
         STORAGE_DIR: '.data/e2e-storage',
         TEST_RUNNER_MODE: 'inline',
+        AUTO_LOGIN_EMAIL: '', // E2E tests the real sign-in form
+        COOKIE_SECURE: 'false',
       },
     },
     {

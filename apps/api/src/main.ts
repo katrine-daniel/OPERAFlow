@@ -1,6 +1,5 @@
+import './load-env'; // first: configuration must be loaded before any module reads it
 import 'reflect-metadata';
-import { existsSync } from 'node:fs';
-import { resolve } from 'node:path';
 import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import type { NestExpressApplication } from '@nestjs/platform-express';
@@ -8,11 +7,6 @@ import { AppModule } from './app.module';
 import { configureApp } from './bootstrap';
 import { env } from './config/env';
 import { JsonLogger } from './ops/observability';
-
-// Local development convenience: load the repo-root .env if present. In containers,
-// configuration comes from the real environment and this file does not exist.
-const rootEnv = resolve(__dirname, '..', '..', '..', '.env');
-if (existsSync(rootEnv) && process.env.NODE_ENV !== 'production') process.loadEnvFile(rootEnv);
 
 async function main() {
   const config = env(); // fail fast on bad configuration

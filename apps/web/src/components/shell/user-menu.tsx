@@ -19,7 +19,7 @@ export function UserMenu({ name, email, role }: { name: string; email: string; r
     try {
       await apiSend('POST', '/auth/logout');
     } finally {
-      router.replace('/login');
+      router.replace('/login?manual=1');
       router.refresh();
     }
   }

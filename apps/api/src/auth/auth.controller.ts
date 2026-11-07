@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpCode, Post, Res } from '@nestjs/common';
+import { Body, Controller, ForbiddenException, Get, HttpCode, NotFoundException, Post, Res } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import type { Response } from 'express';
 import { changePasswordSchema, loginSchema, ROLE_PERMISSIONS, type LoginInput } from '@operaflow/shared';
@@ -26,6 +26,23 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response,
   ) {
     const { token } = await this.auth.login(body, meta);
+    res.cookie(SESSION_COOKIE, token, this.sessions.cookieOptions());
+    return { ok: true };
+  }
+
+  /**
+   * Local-only automatic sign-in (AUTO_LOGIN_EMAIL). Works only outside production and only for a browser
+   * on this same machine (loopback address, resolved through the trusted local proxy). Audited like a login.
+   */
+  @Public()
+  @Post('auto-login')
+  @HttpCode(200)
+  async autoLogin(@ReqMeta() meta: RequestMeta, @Res({ passthrough: true }) res: Response) {
+    const email = env().AUTO_LOGIN_EMAIL;
+    if (!email || env().NODE_ENV === 'production') throw new NotFoundException();
+    const ip = (meta.ipAddress ?? '').replace(/^::ffff:/, '');
+    if (ip !== '127.0.0.1' && ip !== '::1') throw new ForbiddenException('Automatic sign-in only works on this computer');
+    const { token } = await this.auth.autoLogin(email, meta);
     res.cookie(SESSION_COOKIE, token, this.sessions.cookieOptions());
     return { ok: true };
   }

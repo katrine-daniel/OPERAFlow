@@ -27,6 +27,11 @@ const envSchema = z.object({
   RATE_LIMIT_PER_MINUTE: z.coerce.number().int().positive().default(300),
   LOGIN_RATE_LIMIT_PER_MINUTE: z.coerce.number().int().positive().default(10),
   DEFAULT_TIMEZONE: z.string().default('UTC'),
+  /**
+   * Local convenience: sign in automatically as this user when the browser is on the same machine.
+   * Refused in production; requests from any other computer still get the normal sign-in page.
+   */
+  AUTO_LOGIN_EMAIL: z.preprocess((v) => (v === '' ? undefined : v), z.string().trim().toLowerCase().email().optional()),
   /** Directory for uploaded documents and generated files. Must not be web-served. */
   STORAGE_DIR: z.string().default('./storage'),
   MAX_UPLOAD_MB: z.coerce.number().positive().max(20).default(10),
@@ -83,6 +88,9 @@ export function loadEnv(source: NodeJS.ProcessEnv = process.env): Env {
   }
   if (parsed.data.NODE_ENV === 'production' && !parsed.data.COOKIE_SECURE) {
     throw new Error('COOKIE_SECURE must be true in production');
+  }
+  if (parsed.data.NODE_ENV === 'production' && parsed.data.AUTO_LOGIN_EMAIL) {
+    throw new Error('AUTO_LOGIN_EMAIL is not permitted in production');
   }
   if (parsed.data.NODE_ENV === 'production' && parsed.data.SMTP_ALLOW_INSECURE) {
     throw new Error('SMTP_ALLOW_INSECURE is not permitted in production');

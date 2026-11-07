@@ -116,6 +116,42 @@ describe('authentication', () => {
   });
 });
 
+describe('local automatic sign-in', () => {
+  const setAuto = async (email?: string) => {
+    const { resetEnvCache } = await import('../src/config/env');
+    if (email) process.env.AUTO_LOGIN_EMAIL = email;
+    else delete process.env.AUTO_LOGIN_EMAIL;
+    resetEnvCache();
+  };
+  afterAll(() => setAuto(undefined));
+
+  it('is unavailable unless configured', async () => {
+    await setAuto(undefined);
+    expect((await http().post('/auth/auto-login').set('Origin', ORIGIN)).status).toBe(404);
+  });
+
+  it('signs in from this computer, is audited, and refuses other computers', async () => {
+    const admin = await createUser(prisma, 'ADMIN', 'auto@test.local');
+    await setAuto(admin.email);
+    const ok = await http().post('/auth/auto-login').set('Origin', ORIGIN);
+    expect(ok.status).toBe(200);
+    const cookie = ([] as string[]).concat(ok.headers['set-cookie'] ?? []).find((c) => c.startsWith('of_session='))!.split(';')[0]!;
+    expect((await http().get('/auth/me').set('Cookie', cookie)).body.email).toBe('auto@test.local');
+    expect(await prisma.auditLog.count({ where: { action: 'auth.auto_login' } })).toBe(1);
+
+    // Another machine on the network, seen through the trusted local proxy.
+    const remote = await http().post('/auth/auto-login').set('Origin', ORIGIN).set('X-Forwarded-For', '192.168.1.50');
+    expect(remote.status).toBe(403);
+    // A request with no Origin is still blocked by CSRF protection.
+    expect((await http().post('/auth/auto-login')).status).toBe(403);
+  });
+
+  it('never works in production', async () => {
+    const { loadEnv } = await import('../src/config/env');
+    expect(() => loadEnv({ ...process.env, NODE_ENV: 'production', COOKIE_SECURE: 'true', AUTO_LOGIN_EMAIL: 'a@b.co' })).toThrow(/AUTO_LOGIN_EMAIL/);
+  });
+});
+
 describe('CSRF origin check', () => {
   it('rejects state-changing requests without or with a foreign Origin', async () => {
     const user = await createUser(prisma, 'OPS_STAFF');

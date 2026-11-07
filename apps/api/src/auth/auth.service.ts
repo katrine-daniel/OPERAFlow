@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import type { LoginInput } from '@operaflow/shared';
 import { env } from '../config/env';
 import { AuditService } from '../audit/audit.service';
@@ -65,6 +65,15 @@ export class AuthService {
     const token = await this.sessions.create(user.id, meta);
     await this.audit.log({ actorId: user.id, action: 'auth.login', entityType: 'user', entityId: user.id, meta });
     return { token, userId: user.id };
+  }
+
+  async autoLogin(email: string, meta: RequestMeta): Promise<{ token: string }> {
+    const user = await this.prisma.user.findUnique({ where: { email } });
+    if (!user || !user.isActive) throw new NotFoundException();
+    await this.prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } });
+    const token = await this.sessions.create(user.id, meta);
+    await this.audit.log({ actorId: user.id, action: 'auth.auto_login', entityType: 'user', entityId: user.id, meta });
+    return { token };
   }
 
   async logout(user: AuthUser, meta: RequestMeta): Promise<void> {

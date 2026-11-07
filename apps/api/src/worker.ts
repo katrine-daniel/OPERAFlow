@@ -1,18 +1,14 @@
+import './load-env'; // first: configuration must be loaded before any module reads it
 import 'reflect-metadata';
 import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { Queue, Worker, type Job } from 'bullmq';
 import IORedis from 'ioredis';
-import { existsSync } from 'node:fs';
-import { resolve } from 'node:path';
 import { AppModule } from './app.module';
 import { env } from './config/env';
 import { PrismaService } from './prisma/prisma.service';
 import { buildHandlers, executeTracked, QUEUES } from './worker/jobs';
 import { JsonLogger } from './ops/observability';
-
-const rootEnv = resolve(__dirname, '..', '..', '..', '.env');
-if (existsSync(rootEnv) && process.env.NODE_ENV !== 'production') process.loadEnvFile(rootEnv);
 
 const log = new Logger('Worker');
 const SYNC_MS = 60_000;

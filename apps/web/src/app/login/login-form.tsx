@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { apiSend, ClientApiError } from '@/lib/client';
 import { buttonClass, inputClass } from '@/components/ui';
@@ -10,6 +10,21 @@ export function LoginForm() {
   const params = useSearchParams();
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  // Local automatic sign-in (AUTO_LOGIN_EMAIL on this computer). Skipped right after "Sign out".
+  const [auto, setAuto] = useState<'trying' | 'off'>(params.get('manual') === '1' ? 'off' : 'trying');
+
+  useEffect(() => {
+    if (auto !== 'trying') return;
+    const next = params.get('next');
+    apiSend('POST', '/auth/auto-login')
+      .then(() => {
+        router.replace(next && next.startsWith('/') && !next.startsWith('//') ? next : '/');
+        router.refresh();
+      })
+      .catch(() => setAuto('off'));
+  }, [auto, params, router]);
+
+  if (auto === 'trying') return <p className="mt-6 text-[13px] text-ink-3">Signing you in…</p>;
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();

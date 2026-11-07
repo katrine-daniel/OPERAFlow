@@ -57,7 +57,7 @@ npm install
 copy .env.example .env
 ```
 
-Fill `ENCRYPTION_KEY` in `.env` (command in the file), then copy `.env` to `packages/db/.env` (Prisma reads it there).
+Fill `ENCRYPTION_KEY` in `.env` (command in the file). Create `packages/db/.env` containing only the `DATABASE_URL` line (the Prisma CLI reads it there; everything else stays in the root `.env`).
 
 ```bash
 npm run dev:db
