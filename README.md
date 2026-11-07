@@ -35,6 +35,16 @@ deploy/         Caddyfile, docker env template
 docs/           Architecture, deployment, security, credentials, operations, status
 ```
 
+## Quick start (already set up on this computer)
+
+Double-click **`start-operaflow.cmd`**, or run:
+
+```bash
+npm run local
+```
+
+Wait for "OPERAFlow is running", then open http://localhost:3000. The local login is the newest `ADMIN` line in `.local/seed-credentials.txt`. Keep the window open while you use the app; close it (or press Ctrl+C) to stop.
+
 ## Local development (Windows/macOS/Linux, no Docker needed)
 
 Requires Node.js ≥ 20.11 (developed on Node 24).

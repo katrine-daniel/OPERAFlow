@@ -11,6 +11,7 @@
     "node": ">=20.11"
   },
   "scripts": {
+    "local": "node scripts/start-local.mjs",
     "dev:db": "node scripts/dev-postgres.mjs",
     "db:generate": "npm run generate -w @operaflow/db",
     "db:migrate": "npm run migrate:deploy -w @operaflow/db",
