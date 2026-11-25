@@ -12,7 +12,7 @@ Internal travel-operations platform: one secure backend, database, audit trail a
 > environment and credentials. See [docs/STATUS.md](docs/STATUS.md) for what works now and what needs
 > configuration.
 
-**Showcase:** https://katrine-daniel.github.io/OPERAFlow/ is a static product tour (GitHub Pages: `index.html` + `showcase/img`). It shows screenshots of the real app with fictional demo data. The application itself needs a server (see Deployment). To refresh the screenshots:
+**Live demo:** https://katrine-daniel.github.io/OPERAFlow/ is an **interactive demo** (GitHub Pages: `index.html` + `demo/`). It runs entirely in the visitor's browser with fictional sample data and the same business rules as the app (duplicate detection, missing data, margin, reconciliation, roles). Changes stay in that browser; nothing is sent. `tour.html` is a screenshot tour of the real app. The real application needs a server (see Deployment). To refresh the tour screenshots:
 
 ```bash
 npm run local

@@ -1,0 +1,361 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OPERAFlow</title>
+<meta name="description" content="OPERAFlow — one operations desk for hotel and travel bookings: unified booking registry, supplier follow-ups, daily reports and booking-site test automation.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230f5c6e'/%3E%3Ctext x='16' y='21' font-family='Segoe UI,Arial' font-size='13' font-weight='700' fill='white' text-anchor='middle'%3EOF%3C/text%3E%3C/svg%3E">
+<style>
+:root {
+  --bg: #f6f7f9; --surface: #ffffff; --sunken: #eef1f4; --line: #e1e5ea; --ink: #121826; --ink-2: #3b4455; --ink-3: #687184;
+  --brand: #0f5c6e; --brand-2: #5fb7c9; --brand-soft: #e4f0f3; --nav: #0e1a24; --ok: #13795b; --warn: #a35a00; --bad: #b42318;
+  --shadow: 0 1px 2px rgba(16,24,40,.06), 0 12px 32px -12px rgba(16,24,40,.18);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0c131a; --surface: #121c25; --sunken: #0f1821; --line: #213140; --ink: #e8eef3; --ink-2: #c2ccd6; --ink-3: #8b98a6;
+    --brand: #4fb0c4; --brand-2: #7fd0e0; --brand-soft: #14313a; --shadow: 0 1px 2px rgba(0,0,0,.4), 0 16px 40px -16px rgba(0,0,0,.6);
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0c131a; --surface: #121c25; --sunken: #0f1821; --line: #213140; --ink: #e8eef3; --ink-2: #c2ccd6; --ink-3: #8b98a6;
+  --brand: #4fb0c4; --brand-2: #7fd0e0; --brand-soft: #14313a; --shadow: 0 1px 2px rgba(0,0,0,.4), 0 16px 40px -16px rgba(0,0,0,.6);
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.6 "Inter", "Segoe UI", system-ui, -apple-system, sans-serif; -webkit-font-smoothing: antialiased; }
+a { color: var(--brand); text-decoration: none; }
+a:hover { text-decoration: underline; }
+.wrap { max-width: 1180px; margin: 0 auto; padding: 0 20px; }
+header.top { position: sticky; top: 0; z-index: 20; background: color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter: blur(10px); border-bottom: 1px solid var(--line); }
+header.top .wrap { display: flex; align-items: center; justify-content: space-between; gap: 16px; height: 60px; }
+.logo { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 17px; color: var(--ink); }
+.logo b { color: var(--brand-2); font-weight: 700; }
+.logo i { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 7px; background: #0f5c6e; color: #fff; font-style: normal; font-size: 12px; }
+nav.links { display: flex; gap: 22px; font-size: 14px; }
+nav.links a { color: var(--ink-2); }
+.btn { display: inline-flex; align-items: center; gap: 8px; height: 40px; padding: 0 16px; border-radius: 8px; font-weight: 600; font-size: 14px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); }
+.btn.primary { background: #0f5c6e; border-color: #0f5c6e; color: #fff; }
+.btn:hover { text-decoration: none; filter: brightness(1.05); }
+.hero { padding: 72px 0 40px; }
+.eyebrow { display: inline-flex; gap: 8px; align-items: center; font-size: 12.5px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--brand); background: var(--brand-soft); padding: 4px 10px; border-radius: 99px; }
+h1 { font-size: clamp(32px, 5vw, 52px); line-height: 1.08; letter-spacing: -.02em; margin: 18px 0 16px; max-width: 900px; }
+.lead { font-size: 18px; color: var(--ink-2); max-width: 760px; margin: 0 0 28px; }
+.cta { display: flex; flex-wrap: wrap; gap: 10px; }
+.note { margin-top: 18px; font-size: 13px; color: var(--ink-3); }
+.shot { display: block; width: 100%; border-radius: 12px; border: 1px solid var(--line); box-shadow: var(--shadow); background: var(--surface); cursor: zoom-in; }
+.hero-shot { margin-top: 44px; }
+.stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 36px 0 0; }
+.stat { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; }
+.stat strong { display: block; font-size: 24px; letter-spacing: -.01em; }
+.stat span { font-size: 13px; color: var(--ink-3); }
+section { padding: 64px 0; border-top: 1px solid var(--line); scroll-margin-top: 60px; }
+h2 { font-size: clamp(24px, 3.2vw, 34px); letter-spacing: -.015em; margin: 0 0 10px; }
+.sub { color: var(--ink-2); max-width: 760px; margin: 0 0 32px; }
+.modules { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+.module { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 18px; }
+.module .n { font-size: 12px; font-weight: 700; color: var(--brand); }
+.module h3 { margin: 6px 0 6px; font-size: 16.5px; }
+.module p { margin: 0; font-size: 14px; color: var(--ink-2); }
+.feature { display: grid; grid-template-columns: 5fr 7fr; gap: 36px; align-items: start; margin-bottom: 56px; }
+.feature:nth-of-type(even) .text { order: 2; }
+.feature h3 { font-size: 22px; margin: 0 0 8px; letter-spacing: -.01em; }
+.feature p { color: var(--ink-2); margin: 0 0 14px; }
+ul.ticks { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; font-size: 14.5px; }
+ul.ticks li { position: relative; padding-left: 24px; color: var(--ink-2); }
+ul.ticks li::before { content: ""; position: absolute; left: 2px; top: 7px; width: 12px; height: 7px; border-left: 2px solid var(--ok); border-bottom: 2px solid var(--ok); transform: rotate(-45deg); }
+.pair { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.caption { font-size: 12.5px; color: var(--ink-3); margin-top: 8px; }
+.grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 18px; }
+.card h4 { margin: 0 0 6px; font-size: 15px; }
+.card p { margin: 0; font-size: 14px; color: var(--ink-2); }
+.stack { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { font-size: 13px; padding: 5px 10px; border-radius: 99px; background: var(--surface); border: 1px solid var(--line); color: var(--ink-2); }
+table.status { width: 100%; border-collapse: collapse; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; font-size: 14px; }
+table.status th, table.status td { text-align: left; padding: 11px 14px; border-bottom: 1px solid var(--line); vertical-align: top; }
+table.status th { background: var(--sunken); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--ink-3); }
+table.status tr:last-child td { border-bottom: 0; }
+.ok { color: var(--ok); font-weight: 600; }
+.warn { color: var(--warn); font-weight: 600; }
+.mobile-row { display: grid; grid-template-columns: 260px 1fr; gap: 32px; align-items: center; }
+footer { padding: 36px 0 60px; border-top: 1px solid var(--line); color: var(--ink-3); font-size: 13.5px; }
+dialog { border: 0; padding: 0; background: transparent; max-width: 96vw; max-height: 94vh; }
+dialog::backdrop { background: rgba(6,10,14,.8); }
+dialog img { max-width: 96vw; max-height: 90vh; border-radius: 10px; display: block; }
+dialog p { color: #e8eef3; text-align: center; font-size: 14px; margin: 10px 0 0; }
+.theme { background: none; border: 1px solid var(--line); border-radius: 8px; height: 34px; width: 34px; color: var(--ink-2); cursor: pointer; }
+@media (max-width: 960px) {
+  .modules { grid-template-columns: 1fr 1fr; }
+  .feature { grid-template-columns: 1fr; gap: 18px; }
+  .feature:nth-of-type(even) .text { order: 0; }
+  .grid3 { grid-template-columns: 1fr; }
+  .stats { grid-template-columns: 1fr 1fr; }
+  .mobile-row { grid-template-columns: 1fr; }
+  nav.links { display: none; }
+}
+@media (max-width: 560px) {
+  .modules, .pair { grid-template-columns: 1fr; }
+  .hero { padding-top: 44px; }
+  table.status th:nth-child(3), table.status td:nth-child(3) { display: none; }
+}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <a class="logo" href="#"><i>OF</i><span>OPERA<b>Flow</b></span></a>
+    <nav class="links">
+      <a href="#modules">Modules</a>
+      <a href="#tour">Product tour</a>
+      <a href="#safety">Safety</a>
+      <a href="#status">Status</a>
+    </nav>
+    <div style="display:flex;gap:8px;align-items:center">
+      <button class="theme" id="theme" aria-label="Toggle dark mode" title="Toggle dark mode">◐</button>
+      <a class="btn" href="https://github.com/katrine-daniel/OPERAFlow">GitHub</a>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div class="wrap hero">
+    <span class="eyebrow">Travel operations automation</span>
+    <h1>One operations desk for hotel bookings, suppliers, reports and booking-site QA.</h1>
+    <p class="lead">OPERAFlow brings online and offline bookings into a single registry, chases suppliers who haven't replied, sends the daily operations report on schedule, and tests the booking website end to end — with one secure backend, one audit trail and role-based access for the whole team.</p>
+    <div class="cta">
+      <a class="btn primary" href="index.html">Open the interactive demo</a>
+      <a class="btn" href="#tour">Take the product tour</a>
+      <a class="btn" href="https://github.com/katrine-daniel/OPERAFlow/blob/main/docs/DEPLOYMENT.md">How to deploy</a>
+    </div>
+    <p class="note">All screenshots on this page are from the real application running locally with <strong>fictional demo data</strong> (guests, suppliers and hotels marked "demo"). This page is a showcase; the application itself runs on your own server.</p>
+    <img class="shot hero-shot" src="showcase/img/dashboard.jpg" alt="OPERAFlow dashboard with today's bookings, pending confirmations, missing data, follow-ups, failed tests and automation health" loading="eager">
+    <div class="stats">
+      <div class="stat"><strong>4</strong><span>modules on one platform</span></div>
+      <div class="stat"><strong>4</strong><span>roles: Admin, Ops Manager, Ops Staff, QA</span></div>
+      <div class="stat"><strong>148</strong><span>automated tests incl. browser end-to-end</span></div>
+      <div class="stat"><strong>1</strong><span>audit trail for every sign-in and change</span></div>
+    </div>
+  </div>
+
+  <section id="modules">
+    <div class="wrap">
+      <h2>What it automates</h2>
+      <p class="sub">Four jobs that usually live in spreadsheets, inboxes and manual checks — sharing one database, one login and one reporting engine.</p>
+      <div class="modules">
+        <div class="module"><span class="n">01</span><h3>Booking registry</h3><p>Website bookings (signed webhook) and offline bookings from TBO, hotel calls and supplier email in one list, with duplicate detection and reconciliation.</p></div>
+        <div class="module"><span class="n">02</span><h3>Supplier follow-ups</h3><p>Tracks quotation and rate-request emails in Gmail or Microsoft 365 and drafts a follow-up when a supplier hasn't replied in 24/48/72 hours.</p></div>
+        <div class="module"><span class="n">03</span><h3>Daily reports</h3><p>Excel and PDF operations reports on a schedule in your timezone, delivered only to approved recipients, with delivery history.</p></div>
+        <div class="module"><span class="n">04</span><h3>Booking-site testing</h3><p>Playwright journeys — search, rates, guest details, book, cancel — on desktop and mobile, with screenshots, traces and alerts.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="tour">
+    <div class="wrap">
+      <h2>Product tour</h2>
+      <p class="sub">Click any screenshot to enlarge it.</p>
+
+      <div class="feature">
+        <div class="text">
+          <h3>Every booking in one registry</h3>
+          <p>Online and offline bookings side by side, searchable and filterable by channel, source, supplier, status and dates.</p>
+          <ul class="ticks">
+            <li>Internal references, supplier references and confirmation numbers</li>
+            <li>Margin is calculated — and left blank, never zero, when price or cost is missing</li>
+            <li>Website-owned fields are locked; staff edit only what they own</li>
+            <li>Field-level change history with who, when and what</li>
+          </ul>
+        </div>
+        <div>
+          <img class="shot" src="showcase/img/bookings.jpg" alt="Booking registry list with online and offline bookings" loading="lazy">
+        </div>
+      </div>
+
+      <div class="feature">
+        <div class="text">
+          <h3>Offline bookings, done properly</h3>
+          <p>A guided form for TBO, direct-hotel and supplier-email bookings. If the same guest, hotel and dates already exist — even with the name typed differently — staff are warned before saving.</p>
+          <ul class="ticks">
+            <li>Missing information is flagged on the booking and in reports</li>
+            <li>Vouchers and confirmations attached securely</li>
+            <li>CSV/Excel bulk import with a preview before anything is written</li>
+          </ul>
+        </div>
+        <div class="pair">
+          <div><img class="shot" src="showcase/img/new-booking.jpg" alt="New offline booking form" loading="lazy"><div class="caption">New offline booking</div></div>
+          <div><img class="shot" src="showcase/img/booking-detail.jpg" alt="Booking detail with missing data warning" loading="lazy"><div class="caption">Booking detail with missing-data warning</div></div>
+        </div>
+      </div>
+
+      <div class="feature">
+        <div class="text">
+          <h3>Reconciliation catches what people miss</h3>
+          <p>Compares online and offline records: possible duplicates, the same stay booked twice at different prices, a cancellation that reached the website but not the offline record, and bookings missing data.</p>
+          <ul class="ticks">
+            <li>Issues resolve themselves when the data is fixed</li>
+            <li>Dismissed issues stay dismissed, with the reason recorded</li>
+            <li>Runs nightly, or on demand after an import</li>
+          </ul>
+        </div>
+        <div class="pair">
+          <div><img class="shot" src="showcase/img/reconciliation.jpg" alt="Reconciliation issues" loading="lazy"><div class="caption">Reconciliation</div></div>
+          <div><img class="shot" src="showcase/img/imports.jpg" alt="CSV and Excel imports" loading="lazy"><div class="caption">CSV / Excel imports</div></div>
+        </div>
+      </div>
+
+      <div class="feature">
+        <div class="text">
+          <h3>Supplier follow-ups that wait for a human</h3>
+          <p>When a supplier hasn't replied, OPERAFlow drafts the follow-up and asks the owner to approve the exact text. Out-of-office replies don't count as answers; bounces and unknown senders go to review.</p>
+          <ul class="ticks">
+            <li>Business hours, weekends and timezones respected</li>
+            <li>Only the supplier's approved contacts are ever emailed</li>
+            <li>Unattended sending only after an administrator approves the rule</li>
+            <li>If the supplier replies before approval, nothing is sent</li>
+          </ul>
+        </div>
+        <div class="pair">
+          <div><img class="shot" src="showcase/img/followups.jpg" alt="Supplier follow-up conversations" loading="lazy"><div class="caption">Tracked threads</div></div>
+          <div><img class="shot" src="showcase/img/followup-review.jpg" alt="Follow-up draft awaiting approval" loading="lazy"><div class="caption">Draft waiting for approval</div></div>
+        </div>
+      </div>
+
+      <div class="feature">
+        <div class="text">
+          <h3>The daily report, on time, every day</h3>
+          <p>Bookings made (or arriving) each day in your timezone, with totals per currency, data-quality warnings and open reconciliation issues — as Excel and PDF.</p>
+          <ul class="ticks">
+            <li>Preview before a schedule can be switched on</li>
+            <li>Approved recipients only; a summary can also go to Teams or Slack</li>
+            <li>Each delivery tracked; retries never email anyone twice</li>
+          </ul>
+        </div>
+        <div class="pair">
+          <div><img class="shot" src="showcase/img/reports.jpg" alt="Report schedules" loading="lazy"><div class="caption">Schedules and history</div></div>
+          <div><img class="shot" src="showcase/img/report-run.jpg" alt="Report run summary" loading="lazy"><div class="caption">A generated report</div></div>
+        </div>
+      </div>
+
+      <div class="feature">
+        <div class="text">
+          <h3>The booking website, tested end to end</h3>
+          <p>Real browser journeys on desktop and mobile. Each run records every step, timing, screenshots and a replayable trace; failures are explained in plain language and critical ones alert the team.</p>
+          <ul class="ticks">
+            <li>Bookings are created or cancelled only in a sandbox that allows it</li>
+            <li>Real card numbers are refused; only published test cards are typed</li>
+            <li>The browser can't leave the site under test</li>
+          </ul>
+        </div>
+        <div>
+          <img class="shot" src="showcase/img/testing.jpg" alt="Booking-site test dashboard" loading="lazy">
+          <div class="pair" style="margin-top:12px">
+            <div><img class="shot" src="showcase/img/test-run-passed.jpg" alt="Passed booking-and-cancel test run" loading="lazy"><div class="caption">Book &amp; cancel journey — passed</div></div>
+            <div><img class="shot" src="showcase/img/test-run-failed.jpg" alt="Failed test run with explanation" loading="lazy"><div class="caption">A caught failure, explained</div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="feature">
+        <div class="text">
+          <h3>Honest about every connection</h3>
+          <p>Each channel and integration shows exactly how it is connected. Nothing is shown as live until real data has arrived; demo and manual channels are labelled as such.</p>
+          <ul class="ticks">
+            <li>Signed webhook for the booking website</li>
+            <li>Gmail and Microsoft 365 via OAuth; Teams/Slack channels</li>
+            <li>Every sign-in and change in an append-only audit log</li>
+          </ul>
+        </div>
+        <div class="pair">
+          <div><img class="shot" src="showcase/img/sources.jpg" alt="Booking sources" loading="lazy"><div class="caption">Booking sources</div></div>
+          <div><img class="shot" src="showcase/img/audit.jpg" alt="Audit log" loading="lazy"><div class="caption">Audit log</div></div>
+        </div>
+      </div>
+
+      <div class="mobile-row">
+        <img class="shot" src="showcase/img/mobile.jpg" alt="OPERAFlow on a phone" loading="lazy">
+        <div>
+          <h3 style="font-size:22px;margin:0 0 8px">Works on the phone too</h3>
+          <p style="color:var(--ink-2);margin:0">The whole application adapts to small screens, so managers can check confirmations, approve follow-ups and read the daily report on the move.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="safety">
+    <div class="wrap">
+      <h2>Built for real guest data</h2>
+      <p class="sub">Designed for internal office use with personal information, payments and supplier relationships in mind.</p>
+      <div class="grid3">
+        <div class="card"><h4>Role-based access</h4><p>Administrator, Operations Manager, Operations Staff and QA — enforced on the server for every request. QA never sees guest data.</p></div>
+        <div class="card"><h4>Secure sessions</h4><p>Argon2id passwords, lockout after repeated failures, revocable server-side sessions, rate limiting and CSRF protection.</p></div>
+        <div class="card"><h4>Encrypted secrets</h4><p>Mailbox tokens, webhook secrets and test credentials are encrypted (AES-256-GCM) and never shown again.</p></div>
+        <div class="card"><h4>Nothing invented</h4><p>Missing amounts stay missing and are reported. Totals are per currency, never mixed or converted.</p></div>
+        <div class="card"><h4>No duplicate sends</h4><p>Reports and follow-ups are idempotent: a retry can never email the same person twice.</p></div>
+        <div class="card"><h4>Audited and monitored</h4><p>Append-only audit log, request IDs on every response, health checks, metrics and data-retention rules.</p></div>
+      </div>
+      <h3 style="margin:36px 0 12px;font-size:18px">Technology</h3>
+      <div class="stack">
+        <span class="chip">Next.js + TypeScript + Tailwind</span><span class="chip">NestJS REST API</span><span class="chip">PostgreSQL + Prisma</span>
+        <span class="chip">Redis + BullMQ</span><span class="chip">Playwright</span><span class="chip">Microsoft Graph &amp; Gmail OAuth</span>
+        <span class="chip">Excel &amp; PDF generation</span><span class="chip">Docker Compose + Caddy</span><span class="chip">GitHub Actions CI</span>
+      </div>
+    </div>
+  </section>
+
+  <section id="status">
+    <div class="wrap">
+      <h2>Project status</h2>
+      <p class="sub">All six build phases are complete and tested. Connecting the live services is the remaining step and needs the business's own accounts.</p>
+      <table class="status">
+        <thead><tr><th>Area</th><th>Status</th><th>Notes</th></tr></thead>
+        <tbody>
+          <tr><td>Booking registry, imports, reconciliation</td><td class="ok">Built &amp; tested</td><td>Works without external accounts</td></tr>
+          <tr><td>Daily reports (Excel / PDF)</td><td class="ok">Built &amp; tested</td><td>Email delivery needs an SMTP relay</td></tr>
+          <tr><td>Supplier follow-ups</td><td class="ok">Built &amp; tested</td><td>Needs a Google or Microsoft 365 OAuth app to connect a mailbox</td></tr>
+          <tr><td>Booking-site test automation</td><td class="ok">Built &amp; tested</td><td>Needs the booking website's sandbox URL and test accounts</td></tr>
+          <tr><td>Security, monitoring, backups</td><td class="ok">Built &amp; tested</td><td>148 automated tests incl. browser end-to-end</td></tr>
+          <tr><td>Live deployment</td><td class="warn">Ready, not yet deployed</td><td>Runs on any server with Docker; guide included</td></tr>
+          <tr><td>Website API sync &amp; TBO live API</td><td class="warn">Needs vendor access</td><td>Manual entry and CSV import are used until API credentials exist</td></tr>
+        </tbody>
+      </table>
+      <div class="cta" style="margin-top:22px">
+        <a class="btn" href="https://github.com/katrine-daniel/OPERAFlow/blob/main/docs/STATUS.md">Full status &amp; test results</a>
+        <a class="btn" href="https://github.com/katrine-daniel/OPERAFlow/blob/main/docs/OPERATIONS.md">Operations manual</a>
+        <a class="btn" href="https://github.com/katrine-daniel/OPERAFlow/blob/main/docs/SECURITY.md">Security checklist</a>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">OPERAFlow · internal travel operations platform · Screenshots use fictional demo data · <a href="https://github.com/katrine-daniel/OPERAFlow">Source on GitHub</a></div>
+</footer>
+
+<dialog id="viewer" aria-label="Screenshot viewer">
+  <img id="viewer-img" alt="">
+  <p id="viewer-cap">Click anywhere or press Esc to close</p>
+</dialog>
+
+<script>
+  const dlg = document.getElementById('viewer');
+  const img = document.getElementById('viewer-img');
+  document.querySelectorAll('img.shot').forEach((el) => el.addEventListener('click', () => {
+    img.src = el.src; img.alt = el.alt; document.getElementById('viewer-cap').textContent = el.alt;
+    dlg.showModal();
+  }));
+  dlg.addEventListener('click', () => dlg.close());
+
+  const root = document.documentElement;
+  let saved = null;
+  try { saved = localStorage.getItem('of-theme'); } catch (e) {}
+  if (saved) root.dataset.theme = saved;
+  document.getElementById('theme').addEventListener('click', () => {
+    const dark = root.dataset.theme ? root.dataset.theme === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
+    root.dataset.theme = dark ? 'light' : 'dark';
+    try { localStorage.setItem('of-theme', root.dataset.theme); } catch (e) {}
+  });
+</script>
+</body>
+</html>

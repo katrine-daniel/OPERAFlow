@@ -38,6 +38,20 @@ export default tseslint.config(
     settings: { next: { rootDir: 'apps/web' } },
   },
   {
+    // GitHub Pages interactive demo: plain browser scripts sharing globals across two files.
+    files: ['demo/**/*.js'],
+    languageOptions: {
+      sourceType: 'script',
+      globals: {
+        ...globals.browser,
+        OF_TZ: 'readonly', OF_ROLES: 'readonly', OF_SOURCES: 'readonly', OF_LABEL: 'readonly', OF_FIELD: 'readonly',
+        ofDayISO: 'readonly', ofAddDays: 'readonly', ofNights: 'readonly', ofNormalizeName: 'readonly', ofDedupeKey: 'readonly',
+        ofMissing: 'readonly', ofMargin: 'readonly', ofSeed: 'readonly',
+      },
+    },
+    rules: { '@typescript-eslint/no-unused-vars': 'off', 'no-redeclare': 'off' },
+  },
+  {
     files: ['scripts/**/*.mjs', 'packages/db/prisma/**/*.ts'],
     rules: { 'no-console': 'off' },
   },
