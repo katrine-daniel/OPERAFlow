@@ -259,7 +259,7 @@ The 15 new API tests:
 | `npm run lint` | pass |
 | `npm run typecheck` (4 workspaces) | pass |
 | `packages/shared` unit tests | 25/25 |
-| `apps/api` unit + integration (PostgreSQL 17, SMTP test server, real Chromium) | 111/111 |
+| `apps/api` unit + integration (PostgreSQL 17, SMTP test server, real Chromium) | 114/114 (re-run 2026-11-25) |
 | `npm run e2e` (browser, desktop + mobile) | 9/9 |
 | `node scripts/audit-check.mjs` | pass (1 accepted advisory) |
 | Production `next build` + standalone server | pass; strict CSP served, `/api` proxy working |
