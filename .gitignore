@@ -15,3 +15,4 @@ storage/
 test-results/
 playwright-report/
 *.log
+.claude/
