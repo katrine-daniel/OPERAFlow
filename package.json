@@ -17,6 +17,7 @@
     "db:migrate": "npm run migrate:deploy -w @operaflow/db",
     "db:migrate:dev": "npm run migrate:dev -w @operaflow/db",
     "db:seed": "npm run seed -w @operaflow/db",
+    "seed:demo": "npm run seed:demo -w @operaflow/db --",
     "build": "npm run build -w @operaflow/shared && npm run build -w @operaflow/db && npm run build -w @operaflow/api && npm run build -w @operaflow/web",
     "dev:api": "npm run dev -w @operaflow/api",
     "dev:web": "npm run dev -w @operaflow/web",

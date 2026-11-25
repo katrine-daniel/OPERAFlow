@@ -52,7 +52,15 @@ export default async function ConversationPage({ params }: { params: Promise<{ i
       />
       <div className="mb-4 flex flex-wrap items-center gap-2 text-[13px]">
         <StatusBadge value={c.status === 'REPLIED' ? 'CONFIRMED' : c.status === 'NEEDS_REVIEW' || c.status === 'AWAITING_APPROVAL' ? 'PENDING' : c.status} label={c.status.replace(/_/g, ' ').toLowerCase()} />
-        <span className="text-ink-3">Rule: {c.rule ? `${c.rule.name} (${c.rule.sendMode === 'AUTO_SEND' ? 'auto-send' : 'draft review'})` : '—'}</span>
+        <span className="text-ink-3">
+          Rule:{' '}
+          {c.rule
+            ? (() => {
+                const mode = c.rule.sendMode === 'AUTO_SEND' ? 'auto-send' : 'draft review';
+                return c.rule.name.toLowerCase().includes(mode) ? c.rule.name : `${c.rule.name} (${mode})`;
+              })()
+            : '—'}
+        </span>
         <span className="text-ink-3">· Follow-ups {c.followUpCount}/{c.rule?.maxFollowUps ?? '—'}</span>
         {c.nextFollowUpAt && <span className="text-ink-3">· Next due {formatDateTime(c.nextFollowUpAt)}</span>}
         <span className="text-ink-3">· Last checked {formatDateTime(c.lastCheckedAt)}</span>
